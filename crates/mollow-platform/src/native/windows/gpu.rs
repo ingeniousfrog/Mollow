@@ -168,6 +168,13 @@ mod tests {
 
     #[test]
     fn adapter_desc_structure_size_matches_dxgi() {
-        assert_eq!(std::mem::size_of::<DxgiAdapterDesc>(), 112);
+        // DXGI_ADAPTER_DESC: WCHAR Description[128] + 4×UINT + 2×SIZE_T + LUID.
+        const DESCRIPTION_BYTES: usize = 128 * 2;
+        const UINT_FIELDS_BYTES: usize = 4 * 4;
+        const SIZE_T_FIELDS_BYTES: usize = 2 * std::mem::size_of::<usize>();
+        const LUID_BYTES: usize = 8;
+        let expected =
+            DESCRIPTION_BYTES + UINT_FIELDS_BYTES + SIZE_T_FIELDS_BYTES + LUID_BYTES;
+        assert_eq!(std::mem::size_of::<DxgiAdapterDesc>(), expected);
     }
 }
