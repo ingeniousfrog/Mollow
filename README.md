@@ -1,5 +1,7 @@
 # Mollow
 
+English | [简体中文](README-CN.md)
+
 Mollow is a cross-platform machine inspection and performance-baseline CLI.
 It is designed to answer three questions:
 
@@ -10,9 +12,6 @@ It is designed to answer three questions:
 Mollow collects hardware, operating-system, and runtime facts, then pairs them
 with lightweight and reproducible real-world workloads. It does not try to
 replace full benchmark suites, hardware monitors, or tuning tools.
-
-> Mollow 是一个跨平台的机器环境探测与性能基线 CLI。它关注机器具备什么能力、
-> 当前处于什么状态，以及相对历史记录或其他机器发生了什么变化。
 
 ## Current milestone
 
