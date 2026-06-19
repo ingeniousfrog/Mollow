@@ -40,13 +40,22 @@ An absent value is therefore never ambiguous.
 
 Machine snapshots carry both `schema_version` and `mollow_version`. Compatible
 additions may extend a schema, while breaking changes require a new schema file
-and an explicit migration path. Report language and formatting never change
-the underlying snapshot.
+and an explicit migration path. Schema v1 remains available for the Phase 1
+shape; Phase 2 uses v2 because storage and runtime placeholders became typed
+collections. Report language and formatting never change the underlying
+snapshot.
 
 ## Current platform coverage
 
-The first vertical slice uses `sysctlbyname` through a thin macOS FFI wrapper
-for operating-system, CPU, and installed-memory facts. Other targets compile
-with a conservative standard-library adapter and report unimplemented facts
-as errors. Native Linux and Windows collectors are subsequent milestones.
+The macOS adapter uses `sysctlbyname`, Mach host statistics, and `getmntinfo`
+through thin native wrappers for operating-system, CPU, memory, swap, and
+mounted-volume facts. Runtime discovery executes a fixed allowlist of version
+commands directly without a shell or user-controlled arguments.
 
+The Linux adapter reads `/proc`, `/etc/os-release`, `uname`, and `statvfs`.
+Parsing of CPU, memory, and mount records is isolated into fixture-tested pure
+functions.
+
+The Windows adapter uses thin Win32/NT FFI for version, hostname, CPU features,
+memory state, registry-backed CPU identity, and mounted volumes. It passes
+cross-target type checking; live Windows validation remains a release gate.

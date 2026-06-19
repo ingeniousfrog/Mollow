@@ -62,6 +62,7 @@ mod tests {
                     model: None,
                     physical_cores: None,
                     logical_cores: 2,
+                    features: vec!["fixture_simd".to_owned()],
                 },
                 source.clone(),
             ),
@@ -69,28 +70,41 @@ mod tests {
                 MemoryInfo {
                     total_bytes: 1024,
                     available_bytes: None,
+                    swap: Capability::unsupported("fixture"),
                 },
                 source,
             ),
-            storage: Capability::unsupported("future phase"),
+            storage: Capability::available(
+                Vec::new(),
+                DataSource {
+                    provider: "fixture".to_owned(),
+                    detail: None,
+                },
+            ),
             gpu: Capability::unsupported("future phase"),
             media: Capability::unsupported("future phase"),
             power: Capability::unsupported("future phase"),
             thermal: Capability::unsupported("future phase"),
-            runtimes: Capability::unsupported("future phase"),
+            runtimes: Capability::available(
+                Vec::new(),
+                DataSource {
+                    provider: "fixture".to_owned(),
+                    detail: None,
+                },
+            ),
             warnings: Vec::new(),
         };
 
         let report = render_json(&snapshot).expect("snapshot should serialize");
 
-        assert!(report.contains("\"schema_version\": \"1.0.0\""));
+        assert!(report.contains("\"schema_version\": \"2.0.0\""));
         assert!(report.ends_with('\n'));
     }
 
     #[test]
     fn bundled_schema_matches_the_snapshot_schema_version() {
-        let schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../schemas/machine-snapshot-v1.schema.json");
+        let schema_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas");
+        let schema_path = schema_directory.join("machine-snapshot-v2.schema.json");
         let schema = fs::read_to_string(schema_path).expect("snapshot schema should exist");
         let schema: serde_json::Value =
             serde_json::from_str(&schema).expect("snapshot schema should be valid JSON");
@@ -98,6 +112,32 @@ mod tests {
         assert_eq!(
             schema["properties"]["schema_version"]["const"],
             SCHEMA_VERSION
+        );
+        assert_eq!(
+            schema["properties"]["storage"]["$ref"],
+            "#/$defs/storageCapability"
+        );
+        assert_eq!(
+            schema["properties"]["runtimes"]["$ref"],
+            "#/$defs/runtimeCapability"
+        );
+        assert_eq!(
+            schema["$defs"]["memoryInfo"]["properties"]["swap"]["$ref"],
+            "#/$defs/swapCapability"
+        );
+        assert_eq!(
+            schema["$defs"]["cpuInfo"]["properties"]["features"]["type"],
+            "array"
+        );
+
+        let legacy_schema =
+            fs::read_to_string(schema_directory.join("machine-snapshot-v1.schema.json"))
+                .expect("legacy snapshot schema should remain available");
+        let legacy_schema: serde_json::Value =
+            serde_json::from_str(&legacy_schema).expect("legacy schema should be valid JSON");
+        assert_eq!(
+            legacy_schema["properties"]["schema_version"]["const"],
+            "1.0.0"
         );
     }
 }

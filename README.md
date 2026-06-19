@@ -18,15 +18,19 @@ replace full benchmark suites, hardware monitors, or tuning tools.
 
 The first vertical slice provides a versioned machine snapshot with:
 
-- macOS system, CPU, and installed-memory collection through thin native FFI;
+- macOS system, CPU topology/features, live memory, mounted-volume, and
+  installed-runtime collection through native APIs and thin FFI;
 - explicit capability states and collection provenance;
 - stable, pretty-printed JSON output;
-- placeholders that clearly mark planned storage, GPU, media, power, thermal,
-  and runtime collectors as unsupported.
+- field-level status for restricted observations such as swap usage;
+- placeholders that clearly mark planned GPU, media, power, and thermal
+  collectors as unsupported.
 
-Linux and Windows currently use a conservative portable adapter. Full native
-collectors, benchmarks, comparison, and additional report formats are planned
-next.
+Linux has native `/proc`, `uname`, and `statvfs` collectors with fixture-tested
+parsers. Windows uses thin Win32/NT FFI for system, CPU, memory, and volume
+facts. Both adapters pass cross-target Rust checks; live Windows verification
+remains pending. Benchmarks, comparison, and additional report formats follow
+in later phases.
 
 ## Build and run
 

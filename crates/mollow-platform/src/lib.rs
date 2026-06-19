@@ -1,11 +1,24 @@
+#[cfg(any(target_os = "linux", test))]
+mod linux_parse;
 mod native;
+mod runtimes;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, MachineSnapshot, MemoryInfo, PendingCapability,
-    SCHEMA_VERSION, SystemInfo,
+    Capability, CpuInfo, DataSource, MachineSnapshot, MemoryInfo, PendingCapability, RuntimeInfo,
+    SCHEMA_VERSION, StorageVolume, SystemInfo,
 };
 
 pub use native::NativeProbe;
+use runtimes::detect_runtimes;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProbeArea {
+    System,
+    Cpu,
+    Memory,
+    Storage,
+    Runtimes,
+}
 
 pub trait PlatformProbe {
     /// Collects operating-system and host identity facts.
@@ -32,7 +45,21 @@ pub trait PlatformProbe {
     /// collection operation.
     fn memory(&self) -> Result<MemoryInfo, ProbeError>;
 
-    fn source(&self) -> DataSource;
+    /// Collects mounted storage volumes and their current capacity.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ProbeError`] when mounted volumes cannot be enumerated.
+    fn storage(&self) -> Result<Vec<StorageVolume>, ProbeError>;
+
+    /// Collects versions of key development runtimes available on `PATH`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ProbeError`] when runtime discovery cannot be completed.
+    fn runtimes(&self) -> Result<Vec<RuntimeInfo>, ProbeError>;
+
+    fn source(&self, area: ProbeArea) -> DataSource;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,10 +92,11 @@ pub fn collect_snapshot(
     mollow_version: &str,
     captured_at_unix_ms: u64,
 ) -> MachineSnapshot {
-    let source = probe.source();
-    let system = observe(probe.system(), &source);
-    let cpu = observe(probe.cpu(), &source);
-    let memory = observe(probe.memory(), &source);
+    let system = observe(probe.system(), &probe.source(ProbeArea::System));
+    let cpu = observe(probe.cpu(), &probe.source(ProbeArea::Cpu));
+    let memory = observe(probe.memory(), &probe.source(ProbeArea::Memory));
+    let storage = observe(probe.storage(), &probe.source(ProbeArea::Storage));
+    let runtimes = observe(probe.runtimes(), &probe.source(ProbeArea::Runtimes));
     let pending = || Capability::<PendingCapability>::unsupported("planned for a future phase");
 
     MachineSnapshot {
@@ -78,12 +106,12 @@ pub fn collect_snapshot(
         system,
         cpu,
         memory,
-        storage: pending(),
+        storage,
         gpu: pending(),
         media: pending(),
         power: pending(),
         thermal: pending(),
-        runtimes: pending(),
+        runtimes,
         warnings: Vec::new(),
     }
 }
@@ -102,7 +130,10 @@ pub fn native_probe() -> NativeProbe {
 
 #[cfg(test)]
 mod tests {
-    use mollow_core::{CapabilityStatus, CpuInfo, MemoryInfo, SCHEMA_VERSION, SystemInfo};
+    use mollow_core::{
+        CapabilityStatus, CpuInfo, MemoryInfo, RuntimeInfo, SCHEMA_VERSION, StorageVolume,
+        SystemInfo,
+    };
 
     use super::*;
 
@@ -124,6 +155,7 @@ mod tests {
                 model: Some("Fixture CPU".to_owned()),
                 physical_cores: Some(4),
                 logical_cores: 8,
+                features: vec!["fixture_simd".to_owned()],
             })
         }
 
@@ -131,10 +163,28 @@ mod tests {
             Err(ProbeError::new("memory", "fixture failure"))
         }
 
-        fn source(&self) -> DataSource {
+        fn storage(&self) -> Result<Vec<StorageVolume>, ProbeError> {
+            Ok(vec![StorageVolume {
+                name: Some("fixture".to_owned()),
+                mount_point: "/".to_owned(),
+                file_system: Some("fixturefs".to_owned()),
+                total_bytes: 2048,
+                available_bytes: 1024,
+                read_only: false,
+            }])
+        }
+
+        fn runtimes(&self) -> Result<Vec<RuntimeInfo>, ProbeError> {
+            Ok(vec![RuntimeInfo {
+                name: "rustc".to_owned(),
+                version: "1.0.0".to_owned(),
+            }])
+        }
+
+        fn source(&self, area: ProbeArea) -> DataSource {
             DataSource {
                 provider: "fixture".to_owned(),
-                detail: Some("contract test".to_owned()),
+                detail: Some(format!("{area:?} contract test")),
             }
         }
     }
@@ -153,6 +203,8 @@ mod tests {
             snapshot.memory.message.as_deref(),
             Some("memory: fixture failure")
         );
+        assert_eq!(snapshot.storage.status, CapabilityStatus::Available);
+        assert_eq!(snapshot.runtimes.status, CapabilityStatus::Available);
         assert_eq!(snapshot.gpu.status, CapabilityStatus::Unsupported);
     }
 }

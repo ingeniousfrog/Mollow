@@ -1,6 +1,7 @@
-use mollow_core::{CpuInfo, DataSource, MemoryInfo, SystemInfo};
+use mollow_core::{CpuInfo, DataSource, MemoryInfo, RuntimeInfo, StorageVolume, SystemInfo};
 
-use crate::{PlatformProbe, ProbeError};
+use crate::detect_runtimes;
+use crate::{PlatformProbe, ProbeArea, ProbeError};
 
 pub struct NativeProbe;
 
@@ -25,7 +26,19 @@ impl PlatformProbe for NativeProbe {
             physical_cores: None,
             logical_cores: u32::try_from(logical_cores)
                 .map_err(|error| ProbeError::new("cpu", error.to_string()))?,
+            features: Vec::new(),
         })
+    }
+
+    fn storage(&self) -> Result<Vec<StorageVolume>, ProbeError> {
+        Err(ProbeError::new(
+            "storage",
+            "native storage probe is not implemented for this platform",
+        ))
+    }
+
+    fn runtimes(&self) -> Result<Vec<RuntimeInfo>, ProbeError> {
+        detect_runtimes()
     }
 
     fn memory(&self) -> Result<MemoryInfo, ProbeError> {
@@ -35,10 +48,10 @@ impl PlatformProbe for NativeProbe {
         ))
     }
 
-    fn source(&self) -> DataSource {
+    fn source(&self, area: ProbeArea) -> DataSource {
         DataSource {
             provider: "portable-rust".to_owned(),
-            detail: Some("standard library fallback".to_owned()),
+            detail: Some(format!("{area:?} standard library fallback")),
         }
     }
 }

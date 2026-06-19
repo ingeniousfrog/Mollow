@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: &str = "1.0.0";
+pub const SCHEMA_VERSION: &str = "2.0.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -53,6 +53,15 @@ impl<T> Capability<T> {
             message: Some(message.into()),
         }
     }
+
+    pub fn permission_denied(message: impl Into<String>) -> Self {
+        Self {
+            status: CapabilityStatus::PermissionDenied,
+            value: None,
+            source: None,
+            message: Some(message.into()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,12 +78,36 @@ pub struct CpuInfo {
     pub model: Option<String>,
     pub physical_cores: Option<u32>,
     pub logical_cores: u32,
+    pub features: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryInfo {
     pub total_bytes: u64,
     pub available_bytes: Option<u64>,
+    pub swap: Capability<SwapInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwapInfo {
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StorageVolume {
+    pub name: Option<String>,
+    pub mount_point: String,
+    pub file_system: Option<String>,
+    pub total_bytes: u64,
+    pub available_bytes: u64,
+    pub read_only: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeInfo {
+    pub name: String,
+    pub version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -88,12 +121,12 @@ pub struct MachineSnapshot {
     pub system: Capability<SystemInfo>,
     pub cpu: Capability<CpuInfo>,
     pub memory: Capability<MemoryInfo>,
-    pub storage: Capability<PendingCapability>,
+    pub storage: Capability<Vec<StorageVolume>>,
     pub gpu: Capability<PendingCapability>,
     pub media: Capability<PendingCapability>,
     pub power: Capability<PendingCapability>,
     pub thermal: Capability<PendingCapability>,
-    pub runtimes: Capability<PendingCapability>,
+    pub runtimes: Capability<Vec<RuntimeInfo>>,
     pub warnings: Vec<String>,
 }
 
@@ -134,5 +167,13 @@ mod tests {
                 message: Some("not implemented".to_owned()),
             }
         );
+    }
+
+    #[test]
+    fn permission_denied_capability_preserves_the_reason() {
+        let capability = Capability::<u8>::permission_denied("sandbox restriction");
+
+        assert_eq!(capability.status, CapabilityStatus::PermissionDenied);
+        assert_eq!(capability.message.as_deref(), Some("sandbox restriction"));
     }
 }
