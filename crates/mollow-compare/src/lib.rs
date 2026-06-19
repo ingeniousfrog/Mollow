@@ -43,6 +43,10 @@ pub fn compare_runs(
         reasons.push("release builds are required for comparable performance baselines".to_owned());
     }
     let comparable = reasons.is_empty();
+    let environment_warnings = environment_warnings(
+        &baseline.context.machine_snapshot,
+        &candidate.context.machine_snapshot,
+    );
 
     Ok(ComparisonReport {
         schema_version: COMPARISON_SCHEMA_VERSION.to_owned(),
@@ -50,6 +54,7 @@ pub fn compare_runs(
         candidate_started_at_unix_ms: candidate.started_at_unix_ms,
         comparable,
         reasons: reasons.clone(),
+        environment_warnings,
         machine_changes: machine_changes(
             &baseline.context.machine_snapshot,
             &candidate.context.machine_snapshot,
@@ -57,8 +62,34 @@ pub fn compare_runs(
         cpu: compare_workload(&baseline.cpu, &candidate.cpu, &reasons),
         memory: compare_workload(&baseline.memory, &candidate.memory, &reasons),
         storage: compare_workload(&baseline.storage, &candidate.storage, &reasons),
+        gpu: compare_workload(&baseline.gpu, &candidate.gpu, &reasons),
+        media: compare_workload(&baseline.media, &candidate.media, &reasons),
         component_changes: component_changes(baseline, candidate),
     })
+}
+
+/// Compares two machine snapshots without workload performance deltas.
+#[must_use]
+pub fn compare_snapshots(
+    baseline: &MachineSnapshot,
+    candidate: &MachineSnapshot,
+) -> ComparisonReport {
+    let environment_warnings = environment_warnings(baseline, candidate);
+    ComparisonReport {
+        schema_version: COMPARISON_SCHEMA_VERSION.to_owned(),
+        baseline_started_at_unix_ms: baseline.captured_at_unix_ms,
+        candidate_started_at_unix_ms: candidate.captured_at_unix_ms,
+        comparable: false,
+        reasons: vec!["snapshot comparison does not include benchmark workload results".to_owned()],
+        environment_warnings,
+        machine_changes: machine_changes(baseline, candidate),
+        cpu: unavailable(vec!["snapshot comparison only".to_owned()]),
+        memory: unavailable(vec!["snapshot comparison only".to_owned()]),
+        storage: unavailable(vec!["snapshot comparison only".to_owned()]),
+        gpu: unavailable(vec!["snapshot comparison only".to_owned()]),
+        media: unavailable(vec!["snapshot comparison only".to_owned()]),
+        component_changes: Vec::new(),
+    }
 }
 
 fn validate_run(run: &BenchmarkRun, label: &str) -> Result<(), String> {
@@ -389,6 +420,52 @@ fn component_changes(baseline: &BenchmarkRun, candidate: &BenchmarkRun) -> Vec<C
     .collect()
 }
 
+fn environment_warnings(baseline: &MachineSnapshot, candidate: &MachineSnapshot) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if power_source(baseline) != power_source(candidate) {
+        warnings.push(format!(
+            "power source changed from {} to {}",
+            power_source(baseline).unwrap_or("unknown"),
+            power_source(candidate).unwrap_or("unknown")
+        ));
+    }
+    if low_power_mode(baseline) != low_power_mode(candidate) {
+        warnings.push("low power mode changed between captures".to_owned());
+    }
+    if thermal_state(baseline) != thermal_state(candidate) {
+        warnings.push(format!(
+            "thermal state changed from {} to {}",
+            thermal_state(baseline).unwrap_or("unknown"),
+            thermal_state(candidate).unwrap_or("unknown")
+        ));
+    }
+    warnings
+}
+
+fn power_source(snapshot: &MachineSnapshot) -> Option<&str> {
+    snapshot
+        .power
+        .value
+        .as_ref()
+        .map(|value| value.source.as_str())
+}
+
+fn low_power_mode(snapshot: &MachineSnapshot) -> Option<bool> {
+    snapshot
+        .power
+        .value
+        .as_ref()
+        .and_then(|value| value.low_power_mode)
+}
+
+fn thermal_state(snapshot: &MachineSnapshot) -> Option<&str> {
+    snapshot
+        .thermal
+        .value
+        .as_ref()
+        .map(|value| value.state.as_str())
+}
+
 #[cfg(test)]
 mod tests {
     use mollow_core::{
@@ -506,8 +583,8 @@ mod tests {
             cpu: capability(),
             memory: capability(),
             storage: capability(),
-            gpu: Capability::unsupported("fixture"),
-            media: Capability::unsupported("fixture"),
+            gpu: capability(),
+            media: capability(),
             warnings: Vec::new(),
         }
     }

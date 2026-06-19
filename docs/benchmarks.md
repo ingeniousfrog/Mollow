@@ -59,6 +59,11 @@ encryption, free space, and the temporary directory's backing volume.
 
 ## Deferred workloads
 
-GPU and media results are explicitly marked `unsupported` until platform
-backends can run real, versioned workloads. Mollow does not infer those results
-from device names.
+GPU and media benchmarks now run deterministic host-side workloads:
+
+- GPU: `gpu.matrix-multiply`
+- Media: `media.frame-bytes-process`
+
+Platform-native hardware codec and GPU compute backends may extend these
+workloads in later revisions. Mollow does not infer those results from device
+names alone.

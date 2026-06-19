@@ -1,5 +1,5 @@
 [package]
-name = "mollow-report"
+name = "mollow-archive"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,12 +8,8 @@ rust-version.workspace = true
 
 [dependencies]
 mollow-core = { path = "../mollow-core" }
-mollow-compare = { path = "../mollow-compare" }
 serde.workspace = true
 serde_json.workspace = true
-
-[dev-dependencies]
-jsonschema = "0.29"
 
 [lints]
 workspace = true

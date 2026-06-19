@@ -17,6 +17,7 @@ mollow-compare = { path = "../mollow-compare" }
 mollow-core = { path = "../mollow-core" }
 mollow-platform = { path = "../mollow-platform" }
 mollow-report = { path = "../mollow-report" }
+mollow-archive = { path = "../mollow-archive" }
 serde.workspace = true
 serde_json.workspace = true
 

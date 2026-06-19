@@ -39,7 +39,12 @@ fn capture_compare_and_render_workflow_is_complete() {
         .output()
         .expect("compare should start");
     assert!(comparison.status.success());
-    assert!(String::from_utf8_lossy(&comparison.stdout).contains("\"comparable\": false"));
+    let comparison_body = String::from_utf8_lossy(&comparison.stdout);
+    if cfg!(debug_assertions) {
+        assert!(comparison_body.contains("\"comparable\": false"));
+    } else {
+        assert!(comparison_body.contains("\"comparable\": true"));
+    }
 
     let report = Command::new(env!("CARGO_BIN_EXE_mollow"))
         .args([

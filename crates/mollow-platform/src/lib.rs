@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+mod linux_media;
 #[cfg(any(target_os = "linux", test))]
 mod linux_parse;
 mod native;

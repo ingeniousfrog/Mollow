@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mollow.dev/schemas/comparison-report-v2.schema.json",
+  "title": "Mollow Comparison Report v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "baseline_started_at_unix_ms",
+    "candidate_started_at_unix_ms",
+    "comparable",
+    "reasons",
+    "environment_warnings",
+    "machine_changes",
+    "cpu",
+    "memory",
+    "storage",
+    "gpu",
+    "media",
+    "component_changes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "baseline_started_at_unix_ms": {
+      "type": "integer"
+    },
+    "candidate_started_at_unix_ms": {
+      "type": "integer"
+    },
+    "comparable": {
+      "type": "boolean"
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "environment_warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "machine_changes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "cpu": {
+      "$ref": "#/$defs/workloadComparison"
+    },
+    "memory": {
+      "$ref": "#/$defs/workloadComparison"
+    },
+    "storage": {
+      "$ref": "#/$defs/workloadComparison"
+    },
+    "gpu": {
+      "$ref": "#/$defs/workloadComparison"
+    },
+    "media": {
+      "$ref": "#/$defs/workloadComparison"
+    },
+    "component_changes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "$defs": {
+    "workloadComparison": {
+      "type": "object",
+      "required": [
+        "classification",
+        "baseline_rate_per_second",
+        "candidate_rate_per_second",
+        "change_basis_points",
+        "threshold_basis_points",
+        "reasons"
+      ],
+      "properties": {
+        "classification": {
+          "enum": [
+            "improvement",
+            "regression",
+            "stable",
+            "not_comparable",
+            "unavailable"
+          ]
+        },
+        "baseline_rate_per_second": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "candidate_rate_per_second": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "change_basis_points": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "threshold_basis_points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -142,6 +142,130 @@ pub(crate) fn run_storage(profile: BenchmarkProfile) -> Result<WorkloadResult, B
     }
 }
 
+pub(crate) fn run_gpu(profile: BenchmarkProfile) -> Result<WorkloadResult, BenchmarkError> {
+    let configuration = configuration(profile);
+    let size = match profile {
+        BenchmarkProfile::Quick => 128,
+        BenchmarkProfile::Standard => 256,
+    };
+    let left = deterministic_matrix(size, 1, "gpu-left")?;
+    let right = deterministic_matrix(size, 2, "gpu-right")?;
+    let mut output = vec![0.0_f32; size * size];
+
+    for _ in 0..configuration.gpu_warmup_iterations {
+        matrix_multiply(&left, &right, &mut output, size);
+        black_box(output[0]);
+    }
+
+    let work_units = u64::try_from(size)
+        .map_err(|error| BenchmarkError::new("gpu", error.to_string()))?
+        .checked_pow(3)
+        .ok_or_else(|| BenchmarkError::new("gpu", "work unit count overflowed"))?;
+    let samples = (0..configuration.sample_count)
+        .map(|_| {
+            timed_sample(
+                work_units,
+                || {
+                    matrix_multiply(&left, &right, &mut output, size);
+                    black_box(output[size * size - 1]);
+                },
+                "gpu",
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    workload_result(
+        "gpu.matrix-multiply",
+        "flops_per_second",
+        configuration.gpu_warmup_iterations,
+        vec![
+            parameter("matrix_size", &size.to_string()),
+            parameter("element_type", "f32"),
+            parameter("backend", "host-simd"),
+        ],
+        samples,
+    )
+}
+
+pub(crate) fn run_media(profile: BenchmarkProfile) -> Result<WorkloadResult, BenchmarkError> {
+    let configuration = configuration(profile);
+    let frame_bytes = match profile {
+        BenchmarkProfile::Quick => 1280 * 720 * 3 / 2,
+        BenchmarkProfile::Standard => 1920 * 1080 * 3 / 2,
+    };
+    let frame = deterministic_bytes(frame_bytes, "media")?;
+    let mut scratch = zeroed_bytes(frame.len(), "media")?;
+
+    for _ in 0..configuration.media_warmup_iterations {
+        process_frame(&frame, &mut scratch);
+        black_box(scratch[0]);
+    }
+
+    let work_units = u64::try_from(frame.len())
+        .map_err(|error| BenchmarkError::new("media", error.to_string()))?;
+    let samples = (0..configuration.sample_count)
+        .map(|_| {
+            timed_sample(
+                work_units,
+                || {
+                    process_frame(&frame, &mut scratch);
+                    black_box(scratch[frame.len() - 1]);
+                },
+                "media",
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    workload_result(
+        "media.frame-bytes-process",
+        "bytes_per_second",
+        configuration.media_warmup_iterations,
+        vec![
+            parameter("frame_bytes", &frame.len().to_string()),
+            parameter("format", "nv12-like"),
+            parameter("operation", "deterministic-transform"),
+        ],
+        samples,
+    )
+}
+
+fn deterministic_matrix(
+    size: usize,
+    seed: u32,
+    workload: &'static str,
+) -> Result<Vec<f32>, BenchmarkError> {
+    let mut values = Vec::new();
+    values.try_reserve_exact(size * size).map_err(|error| {
+        BenchmarkError::new(workload, format!("matrix allocation failed: {error}"))
+    })?;
+    let mut state = seed;
+    for _ in 0..size * size {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        values.push(f32::from((state & 0xff) as u8) / 255.0);
+    }
+    Ok(values)
+}
+
+fn matrix_multiply(left: &[f32], right: &[f32], output: &mut [f32], size: usize) {
+    for row in 0..size {
+        for col in 0..size {
+            let mut sum = 0.0_f32;
+            for index in 0..size {
+                sum += left[row * size + index] * right[index * size + col];
+            }
+            output[row * size + col] = sum;
+        }
+    }
+}
+
+fn process_frame(frame: &[u8], scratch: &mut [u8]) {
+    for (index, byte) in frame.iter().enumerate() {
+        scratch[index] = byte.rotate_left(u32::try_from(index % 8).unwrap_or(0)) ^ 0x5a;
+    }
+}
+
 fn workload_result(
     workload_id: &str,
     measurement: &str,
@@ -262,6 +386,8 @@ struct Configuration {
     cpu_warmup_iterations: u32,
     memory_warmup_iterations: u32,
     storage_warmup_iterations: u32,
+    gpu_warmup_iterations: u32,
+    media_warmup_iterations: u32,
     cpu_bytes: usize,
     memory_bytes: usize,
     storage_bytes: usize,
@@ -274,6 +400,8 @@ fn configuration(profile: BenchmarkProfile) -> Configuration {
             cpu_warmup_iterations: 8,
             memory_warmup_iterations: 2,
             storage_warmup_iterations: 1,
+            gpu_warmup_iterations: 1,
+            media_warmup_iterations: 1,
             cpu_bytes: 4 * 1024 * 1024,
             memory_bytes: 16 * 1024 * 1024,
             storage_bytes: 8 * 1024 * 1024,
@@ -283,6 +411,8 @@ fn configuration(profile: BenchmarkProfile) -> Configuration {
             cpu_warmup_iterations: 3,
             memory_warmup_iterations: 2,
             storage_warmup_iterations: 1,
+            gpu_warmup_iterations: 2,
+            media_warmup_iterations: 2,
             cpu_bytes: 32 * 1024 * 1024,
             memory_bytes: 64 * 1024 * 1024,
             storage_bytes: 64 * 1024 * 1024,

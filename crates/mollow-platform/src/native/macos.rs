@@ -190,7 +190,8 @@ impl PlatformProbe for NativeProbe {
                 hardware_decode_codecs,
                 hardware_encode_codecs: Vec::new(),
                 notes: vec![
-                    "hardware encode codec enumeration is not exposed by this probe".to_owned(),
+                    "hardware encode codec enumeration requires a newer VideoToolbox API"
+                        .to_owned(),
                 ],
             },
             self.source(ProbeArea::Media),

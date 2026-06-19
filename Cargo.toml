@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/mollow-archive",
     "crates/mollow-bench",
     "crates/mollow-cli",
     "crates/mollow-compare",

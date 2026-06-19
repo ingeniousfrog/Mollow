@@ -3,7 +3,7 @@ mod workloads;
 
 use mollow_core::{
     BENCHMARK_SCHEMA_VERSION, BenchmarkContext, BenchmarkProfile, BenchmarkRun, Capability,
-    DataSource, MachineSnapshot, PendingCapability, WorkloadResult,
+    DataSource, MachineSnapshot, WorkloadResult,
 };
 
 #[derive(Debug)]
@@ -30,7 +30,7 @@ impl std::fmt::Display for BenchmarkError {
 
 impl std::error::Error for BenchmarkError {}
 
-/// Runs the supported Phase 3 benchmark suite.
+/// Runs the supported benchmark suite.
 ///
 /// # Errors
 ///
@@ -69,6 +69,8 @@ pub fn run_suite(
     let cpu = observe(workloads::run_cpu(profile), "cpu");
     let memory = observe(workloads::run_memory(profile), "memory");
     let storage = observe(workloads::run_storage(profile), "storage");
+    let gpu = observe(workloads::run_gpu(profile), "gpu");
+    let media = observe(workloads::run_media(profile), "media");
     let warnings = std::iter::once(build_warning)
         .flatten()
         .chain(
@@ -76,6 +78,8 @@ pub fn run_suite(
                 variation_warning("cpu", &cpu),
                 variation_warning("memory", &memory),
                 variation_warning("storage", &storage),
+                variation_warning("gpu", &gpu),
+                variation_warning("media", &media),
             ]
             .into_iter()
             .flatten(),
@@ -94,12 +98,8 @@ pub fn run_suite(
         cpu,
         memory,
         storage,
-        gpu: Capability::<PendingCapability>::unsupported(
-            "GPU workloads require a platform backend planned for a future phase",
-        ),
-        media: Capability::<PendingCapability>::unsupported(
-            "media workloads require a platform backend planned for a future phase",
-        ),
+        gpu,
+        media,
         warnings,
     })
 }

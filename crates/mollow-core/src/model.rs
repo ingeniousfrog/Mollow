@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: &str = "3.0.0";
-pub const BENCHMARK_SCHEMA_VERSION: &str = "2.0.0";
-pub const COMPARISON_SCHEMA_VERSION: &str = "1.0.0";
+pub const BENCHMARK_SCHEMA_VERSION: &str = "3.0.0";
+pub const COMPARISON_SCHEMA_VERSION: &str = "2.0.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -209,8 +209,8 @@ pub struct BenchmarkRun {
     pub cpu: Capability<WorkloadResult>,
     pub memory: Capability<WorkloadResult>,
     pub storage: Capability<WorkloadResult>,
-    pub gpu: Capability<PendingCapability>,
-    pub media: Capability<PendingCapability>,
+    pub gpu: Capability<WorkloadResult>,
+    pub media: Capability<WorkloadResult>,
     pub warnings: Vec<String>,
 }
 
@@ -254,10 +254,13 @@ pub struct ComparisonReport {
     pub candidate_started_at_unix_ms: u64,
     pub comparable: bool,
     pub reasons: Vec<String>,
+    pub environment_warnings: Vec<String>,
     pub machine_changes: Vec<MachineChange>,
     pub cpu: WorkloadComparison,
     pub memory: WorkloadComparison,
     pub storage: WorkloadComparison,
+    pub gpu: WorkloadComparison,
+    pub media: WorkloadComparison,
     pub component_changes: Vec<ComponentChange>,
 }
 

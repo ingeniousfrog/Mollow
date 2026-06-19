@@ -91,8 +91,8 @@ pub(crate) fn fixture_benchmark() -> BenchmarkRun {
         cpu: capability(),
         memory: capability(),
         storage: capability(),
-        gpu: Capability::unsupported("fixture"),
-        media: Capability::unsupported("fixture"),
+        gpu: capability(),
+        media: capability(),
         warnings: vec!["fixture warning".to_owned()],
     }
 }

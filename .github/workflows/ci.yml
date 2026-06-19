@@ -28,6 +28,12 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Audit dependencies
+        run: cargo audit
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -51,3 +57,5 @@ jobs:
       - name: Run tests
         run: cargo test --workspace
 
+      - name: Run release tests
+        run: cargo test --workspace --release

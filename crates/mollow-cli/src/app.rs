@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -51,10 +52,12 @@ enum Command {
         #[arg(long)]
         output: Option<PathBuf>,
     },
-    /// Compare two benchmark baseline files.
+    /// Compare two or more benchmark baseline files against a baseline.
     Compare {
         baseline: PathBuf,
         candidate: PathBuf,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        extra_candidates: Vec<PathBuf>,
         #[arg(long, value_enum, default_value_t = OutputFormat::Terminal)]
         format: OutputFormat,
         #[arg(long, value_enum, default_value_t = Language::English)]
@@ -71,6 +74,41 @@ enum Command {
         lang: Language,
         #[arg(long)]
         output: Option<PathBuf>,
+    },
+    /// Manage a local baseline archive.
+    Archive {
+        #[command(subcommand)]
+        command: ArchiveCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ArchiveCommand {
+    /// Add a benchmark run to a local archive directory.
+    Add {
+        input: PathBuf,
+        #[arg(long)]
+        dir: PathBuf,
+    },
+    /// List archived benchmark runs.
+    List {
+        #[arg(long)]
+        dir: PathBuf,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Terminal)]
+        format: OutputFormat,
+        #[arg(long, value_enum, default_value_t = Language::English)]
+        lang: Language,
+    },
+    /// Show a workload trend from archived benchmark runs.
+    Trend {
+        #[arg(long)]
+        dir: PathBuf,
+        #[arg(long, default_value = "cpu")]
+        workload: String,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Terminal)]
+        format: OutputFormat,
+        #[arg(long, value_enum, default_value_t = Language::English)]
+        lang: Language,
     },
 }
 
@@ -134,17 +172,16 @@ pub fn execute(cli: &Cli) -> Result<Output, Box<dyn std::error::Error>> {
         Command::Compare {
             baseline,
             candidate,
+            extra_candidates,
             format,
             lang,
             output,
         } => {
-            let baseline: BenchmarkRun = read_json(baseline)?;
-            let candidate: BenchmarkRun = read_json(candidate)?;
-            let comparison = mollow_compare::compare_runs(&baseline, &candidate)?;
-            Ok(rendered(
-                mollow_report::render_comparison(&comparison, (*format).into(), (*lang).into())?,
-                output.as_ref(),
-            ))
+            let mut candidates = vec![candidate.clone()];
+            candidates.extend(extra_candidates.iter().cloned());
+            let content =
+                render_comparisons(baseline, &candidates, (*format).into(), (*lang).into())?;
+            Ok(rendered(content, output.as_ref()))
         }
         Command::Report {
             input,
@@ -156,6 +193,164 @@ pub fn execute(cli: &Cli) -> Result<Output, Box<dyn std::error::Error>> {
             let content = render_detected(value, (*format).into(), (*lang).into())?;
             Ok(rendered(content, output.as_ref()))
         }
+        Command::Archive { command } => match command {
+            ArchiveCommand::Add { input, dir } => {
+                let entry = mollow_archive::add_run(dir, input)?;
+                Ok(rendered(serde_json::to_string_pretty(&entry)?, None))
+            }
+            ArchiveCommand::List { dir, format, lang } => Ok(rendered(
+                render_archive_list(dir, (*format).into(), (*lang).into())?,
+                None,
+            )),
+            ArchiveCommand::Trend {
+                dir,
+                workload,
+                format,
+                lang,
+            } => Ok(rendered(
+                render_archive_trend(dir, workload, (*format).into(), (*lang).into())?,
+                None,
+            )),
+        },
+    }
+}
+
+fn render_comparisons(
+    baseline_path: &Path,
+    candidates: &[PathBuf],
+    format: ReportFormat,
+    language: ReportLanguage,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let baseline_value: serde_json::Value = read_json(baseline_path)?;
+    if baseline_value.get("captured_at_unix_ms").is_some()
+        && baseline_value.get("started_at_unix_ms").is_none()
+    {
+        let baseline: MachineSnapshot = serde_json::from_value(baseline_value)?;
+        let mut sections = Vec::new();
+        for candidate_path in candidates {
+            let candidate: MachineSnapshot = read_json(candidate_path)?;
+            sections.push(mollow_report::render_snapshot_comparison(
+                &baseline, &candidate, format, language,
+            )?);
+        }
+        return Ok(sections.join("\n"));
+    }
+
+    let baseline: BenchmarkRun = serde_json::from_value(baseline_value)?;
+    let mut sections = Vec::new();
+    for candidate_path in candidates {
+        let candidate: BenchmarkRun = read_json(candidate_path)?;
+        let comparison = mollow_compare::compare_runs(&baseline, &candidate)?;
+        sections.push(mollow_report::render_comparison(
+            &comparison,
+            format,
+            language,
+        )?);
+    }
+    Ok(sections.join("\n"))
+}
+
+fn render_archive_list(
+    dir: &Path,
+    format: ReportFormat,
+    language: ReportLanguage,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let entries = mollow_archive::list_runs(dir)?;
+    match format {
+        ReportFormat::Json => Ok(serde_json::to_string_pretty(&entries)?),
+        ReportFormat::Markdown => {
+            let title = match language {
+                ReportLanguage::English => "# Archive entries\n\n",
+                ReportLanguage::Chinese => "# 档案条目\n\n",
+            };
+            let mut output = title.to_owned();
+            if entries.is_empty() {
+                output.push_str(match language {
+                    ReportLanguage::English => "No entries.\n",
+                    ReportLanguage::Chinese => "暂无条目。\n",
+                });
+                return Ok(output);
+            }
+            output.push_str("| id | started_at_unix_ms | profile | hostname | build |\n|---|---:|---|---|---|\n");
+            for entry in entries {
+                let _ = writeln!(
+                    output,
+                    "| {} | {} | {} | {} | {} |",
+                    entry.id,
+                    entry.started_at_unix_ms,
+                    entry.profile,
+                    entry.hostname.as_deref().unwrap_or("-"),
+                    entry.build_profile
+                );
+            }
+            Ok(output)
+        }
+        ReportFormat::Terminal => {
+            let markdown = render_archive_list(dir, ReportFormat::Markdown, language)?;
+            Ok(markdown
+                .replace("# Archive entries\n\n", "")
+                .replace("# 档案条目\n\n", ""))
+        }
+        ReportFormat::Html => Ok(mollow_report::render_markdown_page(
+            match language {
+                ReportLanguage::English => "Archive",
+                ReportLanguage::Chinese => "档案",
+            },
+            &render_archive_list(dir, ReportFormat::Markdown, language)?,
+            language,
+        )),
+    }
+}
+
+fn render_archive_trend(
+    dir: &Path,
+    workload: &str,
+    format: ReportFormat,
+    language: ReportLanguage,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let points = mollow_archive::trend(dir, workload)?;
+    match format {
+        ReportFormat::Json => Ok(serde_json::to_string_pretty(&points)?),
+        ReportFormat::Markdown => {
+            let title = match language {
+                ReportLanguage::English => format!("# Trend for {workload}\n\n"),
+                ReportLanguage::Chinese => format!("# {workload} 趋势\n\n"),
+            };
+            let mut output = title;
+            if points.is_empty() {
+                output.push_str(match language {
+                    ReportLanguage::English => "No points.\n",
+                    ReportLanguage::Chinese => "暂无数据点。\n",
+                });
+                return Ok(output);
+            }
+            output.push_str("| id | started_at_unix_ms | median_rate_per_second | status |\n|---|---:|---:|---|\n");
+            for point in points {
+                let _ = writeln!(
+                    output,
+                    "| {} | {} | {} | {} |",
+                    point.id,
+                    point.started_at_unix_ms,
+                    point
+                        .median_rate_per_second
+                        .map_or_else(|| "-".to_owned(), |value| value.to_string()),
+                    point.status
+                );
+            }
+            Ok(output)
+        }
+        ReportFormat::Terminal => {
+            let markdown = render_archive_trend(dir, workload, ReportFormat::Markdown, language)?;
+            Ok(markdown.lines().skip(2).collect::<Vec<_>>().join("\n"))
+        }
+        ReportFormat::Html => Ok(mollow_report::render_markdown_page(
+            match language {
+                ReportLanguage::English => "Trend",
+                ReportLanguage::Chinese => "趋势",
+            },
+            &render_archive_trend(dir, workload, ReportFormat::Markdown, language)?,
+            language,
+        )),
     }
 }
 

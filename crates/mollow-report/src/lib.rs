@@ -35,6 +35,27 @@ impl std::fmt::Display for ReportError {
 
 impl std::error::Error for ReportError {}
 
+/// Renders markdown content as a semantic HTML page.
+#[must_use]
+pub fn render_markdown_page(page_title: &str, markdown: &str, language: ReportLanguage) -> String {
+    render_html(page_title, markdown, language)
+}
+
+/// Renders a machine snapshot comparison in the requested representation.
+///
+/// # Errors
+///
+/// Returns [`ReportError`] when JSON serialization fails.
+pub fn render_snapshot_comparison(
+    baseline: &MachineSnapshot,
+    candidate: &MachineSnapshot,
+    format: ReportFormat,
+    language: ReportLanguage,
+) -> Result<String, ReportError> {
+    let comparison = mollow_compare::compare_snapshots(baseline, candidate);
+    render_comparison(&comparison, format, language)
+}
+
 /// Renders a machine snapshot as stable, pretty-printed JSON.
 ///
 /// # Errors
@@ -217,6 +238,8 @@ fn render_benchmark_terminal(benchmark: &BenchmarkRun, language: ReportLanguage)
     append_workload_terminal(&mut output, "CPU", &benchmark.cpu, language);
     append_workload_terminal(&mut output, "Memory", &benchmark.memory, language);
     append_workload_terminal(&mut output, "Storage", &benchmark.storage, language);
+    append_workload_terminal(&mut output, "GPU", &benchmark.gpu, language);
+    append_workload_terminal(&mut output, "Media", &benchmark.media, language);
     append_warnings(&mut output, &benchmark.warnings, language, "  ");
     output
 }
@@ -237,6 +260,8 @@ fn render_benchmark_markdown(benchmark: &BenchmarkRun, language: ReportLanguage)
     append_workload_row(&mut output, "CPU", &benchmark.cpu, language);
     append_workload_row(&mut output, "Memory", &benchmark.memory, language);
     append_workload_row(&mut output, "Storage", &benchmark.storage, language);
+    append_workload_row(&mut output, "GPU", &benchmark.gpu, language);
+    append_workload_row(&mut output, "Media", &benchmark.media, language);
     let _ = write!(output, "\n## {}\n\n", title(language, "Warnings", "警告"));
     if benchmark.warnings.is_empty() {
         output.push_str(title(language, "None.\n", "无。\n"));
@@ -265,6 +290,20 @@ fn render_comparison_terminal(comparison: &ComparisonReport, language: ReportLan
     append_comparison_line(&mut output, "CPU", &comparison.cpu, language);
     append_comparison_line(&mut output, "Memory", &comparison.memory, language);
     append_comparison_line(&mut output, "Storage", &comparison.storage, language);
+    append_comparison_line(&mut output, "GPU", &comparison.gpu, language);
+    append_comparison_line(&mut output, "Media", &comparison.media, language);
+    if !comparison.environment_warnings.is_empty() {
+        line(
+            &mut output,
+            title(language, "\nEnvironment warnings:", "\n环境警告："),
+        );
+        append_warnings(
+            &mut output,
+            &comparison.environment_warnings,
+            language,
+            "  ",
+        );
+    }
     if !comparison.machine_changes.is_empty() {
         line(
             &mut output,
@@ -300,6 +339,18 @@ fn render_comparison_markdown(comparison: &ComparisonReport, language: ReportLan
     append_comparison_row(&mut output, "CPU", &comparison.cpu, language);
     append_comparison_row(&mut output, "Memory", &comparison.memory, language);
     append_comparison_row(&mut output, "Storage", &comparison.storage, language);
+    append_comparison_row(&mut output, "GPU", &comparison.gpu, language);
+    append_comparison_row(&mut output, "Media", &comparison.media, language);
+    if !comparison.environment_warnings.is_empty() {
+        let _ = write!(
+            output,
+            "\n## {}\n\n",
+            title(language, "Environment warnings", "环境警告")
+        );
+        for warning in &comparison.environment_warnings {
+            let _ = writeln!(output, "- {warning}");
+        }
+    }
     let _ = write!(
         output,
         "\n## {}\n\n",
@@ -337,13 +388,88 @@ fn render_html(page_title: &str, markdown: &str, language: ReportLanguage) -> St
 <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
 <title>{}</title><style>\
 :root{{color-scheme:light dark}}body{{font:15px/1.6 system-ui,sans-serif;max-width:960px;\
-margin:40px auto;padding:0 24px}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;\
-background:#8881;padding:24px;border-radius:12px}}\
-</style></head><body><pre>{}</pre></body></html>\n",
+margin:40px auto;padding:0 24px;color:CanvasText;background:Canvas}}\
+h1,h2{{line-height:1.25}}table{{width:100%;border-collapse:collapse;margin:16px 0}}\
+th,td{{border:1px solid color-mix(in srgb,CanvasText 20%,transparent);padding:8px 12px;text-align:left}}\
+th{{background:color-mix(in srgb,CanvasText 8%,transparent)}}ul{{padding-left:1.4rem}}\
+.warning{{background:color-mix(in srgb,#f5a623 18%,transparent);border-radius:12px;padding:16px}}\
+</style></head><body>{}</body></html>\n",
         title(language, "en", "zh-CN"),
         escape_html(page_title),
-        escape_html(markdown)
+        markdown_to_semantic_html(markdown)
     )
+}
+
+fn markdown_to_semantic_html(markdown: &str) -> String {
+    let mut html = String::new();
+    let mut in_table = false;
+    let mut table_header_written = false;
+
+    for line in markdown.lines() {
+        if let Some(title) = line.strip_prefix("# ") {
+            close_table(&mut html, &mut in_table);
+            let _ = writeln!(html, "<h1>{}</h1>", escape_html(title));
+            continue;
+        }
+        if let Some(title) = line.strip_prefix("## ") {
+            close_table(&mut html, &mut in_table);
+            let _ = writeln!(html, "<h2>{}</h2>", escape_html(title));
+            continue;
+        }
+        if line.starts_with("| ") && line.ends_with('|') {
+            let cells = line
+                .trim_matches('|')
+                .split('|')
+                .map(str::trim)
+                .collect::<Vec<_>>();
+            if cells
+                .iter()
+                .all(|cell| cell.chars().all(|ch| ch == '-' || ch == ':' || ch == ' '))
+            {
+                continue;
+            }
+            if !in_table {
+                html.push_str("<table>\n");
+                in_table = true;
+                table_header_written = false;
+            }
+            if !table_header_written {
+                html.push_str("<thead><tr>");
+                for cell in &cells {
+                    let _ = write!(html, "<th>{}</th>", escape_html(cell));
+                }
+                html.push_str("</tr></thead>\n<tbody>\n");
+                table_header_written = true;
+                continue;
+            }
+            html.push_str("<tr>");
+            for cell in &cells {
+                let _ = write!(html, "<td>{}</td>", escape_html(cell));
+            }
+            html.push_str("</tr>\n");
+            continue;
+        }
+        if let Some(item) = line.strip_prefix("- ") {
+            close_table(&mut html, &mut in_table);
+            let _ = writeln!(html, "<ul><li>{}</li></ul>", escape_html(item));
+            continue;
+        }
+        if line.trim().is_empty() {
+            close_table(&mut html, &mut in_table);
+            continue;
+        }
+        close_table(&mut html, &mut in_table);
+        let _ = writeln!(html, "<p>{}</p>", escape_html(line));
+    }
+    close_table(&mut html, &mut in_table);
+    html
+}
+
+fn close_table(html: &mut String, in_table: &mut bool) {
+    if *in_table {
+        html.push_str("</tbody></table>\n");
+        *in_table = false;
+    }
 }
 
 fn append_snapshot_capabilities(
@@ -694,7 +820,7 @@ mod tests {
     #[test]
     fn bundled_benchmark_schema_matches_the_benchmark_version() {
         let schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../schemas/benchmark-run-v2.schema.json");
+            .join("../../schemas/benchmark-run-v3.schema.json");
         let schema = fs::read_to_string(schema_path).expect("benchmark schema should exist");
         let schema: serde_json::Value =
             serde_json::from_str(&schema).expect("benchmark schema should be valid JSON");
@@ -703,13 +829,44 @@ mod tests {
             schema["properties"]["schema_version"]["const"],
             mollow_core::BENCHMARK_SCHEMA_VERSION
         );
-        assert_eq!(schema["properties"]["cpu"]["$ref"], "#/$defs/capability");
+        assert_eq!(
+            schema["properties"]["cpu"]["$ref"],
+            "#/$defs/workloadCapability"
+        );
+    }
+
+    #[test]
+    fn exported_benchmark_json_matches_schema() {
+        let benchmark = fixture_benchmark();
+        let json = render_benchmark_json(&benchmark).expect("benchmark should serialize");
+        let value: serde_json::Value =
+            serde_json::from_str(&json).expect("benchmark JSON should parse");
+        let schema_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas");
+        let snapshot_schema =
+            fs::read_to_string(schema_directory.join("machine-snapshot-v3.schema.json"))
+                .expect("snapshot schema should exist");
+        let benchmark_schema =
+            fs::read_to_string(schema_directory.join("benchmark-run-v3.schema.json"))
+                .expect("benchmark schema should exist");
+        let snapshot_value: serde_json::Value =
+            serde_json::from_str(&snapshot_schema).expect("snapshot schema should parse");
+        let mut benchmark_value: serde_json::Value =
+            serde_json::from_str(&benchmark_schema).expect("benchmark schema should parse");
+        benchmark_value
+            .pointer_mut("/properties/context/properties/machine_snapshot")
+            .expect("machine snapshot schema pointer")
+            .clone_from(&snapshot_value);
+        let compiled =
+            jsonschema::validator_for(&benchmark_value).expect("benchmark schema should compile");
+        compiled
+            .validate(&value)
+            .expect("benchmark JSON should match schema");
     }
 
     #[test]
     fn bundled_comparison_schema_matches_the_comparison_version() {
         let schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../schemas/comparison-report-v1.schema.json");
+            .join("../../schemas/comparison-report-v2.schema.json");
         let schema = fs::read_to_string(schema_path).expect("comparison schema should exist");
         let schema: serde_json::Value =
             serde_json::from_str(&schema).expect("comparison schema should be valid JSON");
@@ -732,6 +889,8 @@ mod tests {
         assert!(report.contains("这台机器具备什么能力"));
         assert!(report.contains("<fixture>"));
         assert!(html.contains("<html lang=\"zh-CN\">"));
+        assert!(html.contains("<h1>"));
+        assert!(!html.contains("<pre>"));
     }
 
     #[test]

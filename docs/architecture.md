@@ -13,7 +13,10 @@ mollow-cli
     |        |
     |        +-- mollow-core -- versioned domain model
     |
-    +-- mollow-report ---- JSON and future terminal/Markdown/HTML renderers
+    +-- mollow-bench ----- versioned workloads
+    +-- mollow-compare --- comparability and change detection
+    +-- mollow-archive --- local baseline archive indexing
+    +-- mollow-report ---- JSON, terminal, Markdown, and HTML renderers
 ```
 
 - `mollow-core` owns stable, serializable domain types. It must not depend on a
@@ -22,8 +25,9 @@ mollow-cli
   failures become explicit capability states instead of missing or fabricated
   values.
 - `mollow-bench` owns bounded, versioned workloads and robust sample summaries.
-- `mollow-compare` owns comparability rules, regression thresholds, and
-  field-level changes.
+- `mollow-compare` owns comparability rules, regression thresholds, environment
+  warnings, and field-level changes.
+- `mollow-archive` owns local archive indexing and trend summaries.
 - `mollow-report` renders the same snapshot into multiple representations.
 - `mollow-cli` parses commands and coordinates the other crates.
 
@@ -45,22 +49,26 @@ Machine snapshots carry both `schema_version` and `mollow_version`. Compatible
 additions may extend a schema, while breaking changes require a new schema file
 and an explicit migration path. Schema v1 remains available for the Phase 1
 shape; Phase 2 uses v2 because storage and runtime placeholders became typed
-collections. Report language and formatting never change the underlying
+collections; Phase 6 uses v3 for typed GPU, media, power, and thermal sections.
+Benchmark Schema v3 upgrades GPU and media from pending placeholders to typed
+workload results. Report language and formatting never change the underlying
 snapshot.
 
 ## Current platform coverage
 
-The macOS adapter uses `sysctlbyname`, Mach host statistics, and `getmntinfo`
-through thin native wrappers for operating-system, CPU, memory, swap, and
-mounted-volume facts. Runtime discovery executes a fixed allowlist of version
-commands directly without a shell or user-controlled arguments.
+The macOS adapter uses `sysctlbyname`, Mach host statistics, `getmntinfo`,
+`system_profiler`, VideoToolbox, and `pmset` for operating-system, CPU, memory,
+swap, mounted-volume, GPU, media, power, and thermal facts. Runtime discovery
+executes a fixed allowlist of version commands directly without a shell or
+user-controlled arguments.
 
-The Linux adapter reads `/proc`, `/etc/os-release`, `uname`, and `statvfs`.
-Parsing of CPU, memory, and mount records is isolated into fixture-tested pure
-functions.
+The Linux adapter reads `/proc`, `/etc/os-release`, `uname`, `statvfs`, DRM
+sysfs, VA-API, V4L2, power-supply sysfs, and thermal zones. Parsing of CPU,
+memory, and mount records is isolated into fixture-tested pure functions.
 
 The Windows adapter uses thin Win32/NT FFI for version, hostname, CPU features,
 memory state, registry-backed CPU identity, mounted volumes, and power state.
-GPU, media, and thermal detection remain explicit unsupported capabilities. It
-passes cross-target type checking; live Windows validation remains a release
-gate.
+GPU enumeration uses DXGI; media codec detection uses Media Foundation; thermal
+state uses WMI when available. It passes cross-target type checking; live
+Windows validation remains a release gate documented in
+[release-verification.md](release-verification.md).

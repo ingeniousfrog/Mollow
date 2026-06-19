@@ -4,11 +4,15 @@ use std::mem::size_of;
 use std::ptr;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, MemoryInfo, PowerInfo, RuntimeInfo, StorageVolume, SwapInfo,
-    SystemInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, PowerInfo, RuntimeInfo,
+    StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
+
+mod windows_gpu;
+mod windows_media;
+mod windows_thermal;
 
 const ALL_PROCESSOR_GROUPS: u16 = 0xffff;
 const ERROR_SUCCESS: i32 = 0;
@@ -182,10 +186,49 @@ impl PlatformProbe for NativeProbe {
         detect_runtimes()
     }
 
+    fn gpu(&self) -> Capability<Vec<GpuInfo>> {
+        windows_gpu::enumerate_gpus().map_or_else(
+            |error| {
+                if error.kind() == io::ErrorKind::NotFound {
+                    Capability::unavailable(error.to_string())
+                } else {
+                    Capability::error(error.to_string())
+                }
+            },
+            |gpus| Capability::available(gpus, self.source(ProbeArea::Gpu)),
+        )
+    }
+
+    fn media(&self) -> Capability<MediaInfo> {
+        windows_media::detect_media().map_or_else(
+            |error| {
+                if error.kind() == io::ErrorKind::NotFound {
+                    Capability::unavailable(error.to_string())
+                } else {
+                    Capability::error(error.to_string())
+                }
+            },
+            |media| Capability::available(media, self.source(ProbeArea::Media)),
+        )
+    }
+
     fn power(&self) -> Capability<PowerInfo> {
         windows_power().map_or_else(
             |error| Capability::error(error.to_string()),
             |power| Capability::available(power, self.source(ProbeArea::Power)),
+        )
+    }
+
+    fn thermal(&self) -> Capability<ThermalInfo> {
+        windows_thermal::detect_thermal().map_or_else(
+            |error| {
+                if error.kind() == io::ErrorKind::NotFound {
+                    Capability::unavailable(error.to_string())
+                } else {
+                    Capability::error(error.to_string())
+                }
+            },
+            |thermal| Capability::available(thermal, self.source(ProbeArea::Thermal)),
         )
     }
 
@@ -199,10 +242,13 @@ impl PlatformProbe for NativeProbe {
             ProbeArea::Memory => ("windows-memory", "GlobalMemoryStatusEx"),
             ProbeArea::Storage => ("windows-storage", "Win32 volume APIs"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
-            ProbeArea::Gpu => ("windows-gpu", "not implemented"),
-            ProbeArea::Media => ("windows-media", "not implemented"),
+            ProbeArea::Gpu => ("windows-gpu", "DXGI adapter enumeration"),
+            ProbeArea::Media => (
+                "windows-media",
+                "Media Foundation hardware decoder enumeration",
+            ),
             ProbeArea::Power => ("windows-power", "GetSystemPowerStatus"),
-            ProbeArea::Thermal => ("windows-thermal", "not implemented"),
+            ProbeArea::Thermal => ("windows-thermal", "WMI MSAcpi_ThermalZoneTemperature"),
         };
 
         DataSource {

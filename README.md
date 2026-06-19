@@ -15,21 +15,15 @@ replace full benchmark suites, hardware monitors, or tuning tools.
 
 ## Current milestone
 
-The first vertical slice provides a versioned machine snapshot with:
+The first full vertical slice is available:
 
-- macOS system, CPU topology/features, live memory, mounted-volume, and
-  installed-runtime collection through native APIs and thin FFI;
-- explicit capability states and collection provenance;
-- stable, pretty-printed JSON output;
-- field-level status for restricted observations such as swap usage;
-- placeholders that clearly mark planned GPU, media, power, and thermal
-  collectors as unsupported.
-
-Linux has native `/proc`, `uname`, and `statvfs` collectors with fixture-tested
-parsers. Windows uses thin Win32/NT FFI for system, CPU, memory, and volume
-facts. Both adapters pass cross-target Rust checks; live Windows verification
-remains pending. Benchmarks, comparison, and additional report formats follow
-in later phases.
+- Versioned machine snapshots (Schema v3) and benchmark runs (Benchmark Schema v3);
+- Native system, CPU, memory, storage, and runtime collection through APIs and thin FFI;
+- GPU, media, power, and thermal probes on macOS and Linux; DXGI GPU, Media Foundation
+  codec detection, power, and WMI thermal probes on Windows;
+- Lightweight CPU, memory, storage, GPU compute, and media frame workloads;
+- `capture`, `compare`, local `archive` management, and bilingual JSON, terminal,
+  Markdown, and semantic HTML reports.
 
 ## Build and run
 
@@ -42,6 +36,9 @@ cargo run --release -p mollow -- bench --profile quick --format json
 cargo run --release -p mollow -- capture --output baseline.json
 cargo run -p mollow -- compare baseline.json candidate.json --format markdown
 cargo run -p mollow -- report baseline.json --format html --output report.html
+cargo run -p mollow -- archive add baseline.json --dir ~/.mollow/archive
+cargo run -p mollow -- archive list --dir ~/.mollow/archive
+cargo run -p mollow -- archive trend --dir ~/.mollow/archive --workload cpu
 ```
 
 Run the quality checks:
@@ -50,32 +47,37 @@ Run the quality checks:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test --workspace --release
 ```
 
 ## Workspace
 
 - `crates/mollow-core`: versioned domain model and capability semantics
-- `crates/mollow-bench`: versioned CPU, memory, and storage workloads
-- `crates/mollow-compare`: comparability checks and field-level baseline changes
+- `crates/mollow-bench`: versioned CPU, memory, storage, GPU, and media workloads
+- `crates/mollow-compare`: comparability checks, environment warnings, and baseline changes
 - `crates/mollow-platform`: collection contracts and native adapters
 - `crates/mollow-report`: bilingual JSON, terminal, Markdown, and HTML renderers
+- `crates/mollow-archive`: local baseline archive indexing and trends
 - `crates/mollow-cli`: command-line interface and application coordination
 - `schemas`: versioned export contracts
 - `docs`: architecture and decision records
 
 See [the architecture guide](docs/architecture.md) for design boundaries and
 schema evolution rules. See [the benchmark methodology](docs/benchmarks.md)
+and [the release verification checklist](docs/release-verification.md)
 before comparing or archiving performance results.
 
 ## Current capabilities
 
 - macOS: native system/CPU/memory/storage probes, GPU via `system_profiler`,
-  VideoToolbox hardware decode detection, battery/power state, and thermal
-  status when the operating system exposes it.
-- Linux: `/proc`, sysfs, DRM, power-supply, and thermal-zone probes.
-- Windows: Win32/NT system, CPU, memory, storage, and power probes; GPU, media,
-  and thermal probes remain explicitly unsupported.
-- Reports: JSON, terminal, Markdown, and self-contained HTML in English or
-  Chinese.
-- Baselines: capture, compare, machine/runtime change detection, and explicit
-  non-comparability reasons.
+  VideoToolbox hardware codec detection, battery/power state, and thermal status.
+- Linux: `/proc`, sysfs, DRM, VA-API/V4L2 media capabilities, power-supply, and
+  thermal-zone probes.
+- Windows: Win32/NT system, CPU, memory, storage, DXGI GPU, Media Foundation
+  codec detection, power, and WMI thermal probes.
+- Benchmarks: CPU FNV-1a, memory sequential copy, storage sequential write-read,
+  GPU matrix multiply, and media frame byte processing.
+- Reports: JSON, terminal, Markdown, and semantic self-contained HTML in English
+  or Chinese.
+- Baselines: capture, compare, archive management, machine/runtime/environment
+  change detection, and explicit non-comparability reasons.

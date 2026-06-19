@@ -9,6 +9,8 @@ use mollow_core::{
     StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
+#[cfg(target_os = "linux")]
+use crate::linux_media::{v4l2_codecs, vaapi_codecs};
 use crate::linux_parse::{parse_cpuinfo, parse_meminfo, parse_mountinfo, parse_os_release};
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
 
@@ -105,28 +107,35 @@ impl PlatformProbe for NativeProbe {
     }
 
     fn media(&self) -> Capability<MediaInfo> {
-        let render_nodes = fs::read_dir("/dev/dri")
-            .ok()
-            .into_iter()
-            .flatten()
-            .filter_map(Result::ok)
-            .any(|entry| entry.file_name().to_string_lossy().starts_with("renderD"));
-        if render_nodes {
-            Capability::available(
-                MediaInfo {
-                    backend: "DRM render node".to_owned(),
-                    hardware_decode_codecs: Vec::new(),
-                    hardware_encode_codecs: Vec::new(),
-                    notes: vec![
-                        "codec enumeration requires a VA-API or V4L2 backend planned for a future workload revision"
-                            .to_owned(),
-                    ],
-                },
-                self.source(ProbeArea::Media),
-            )
-        } else {
-            Capability::unavailable("no DRM render node was found")
+        let mut decode_codecs = vaapi_codecs().unwrap_or_default();
+        decode_codecs.extend(v4l2_codecs().unwrap_or_default());
+        decode_codecs.sort();
+        decode_codecs.dedup();
+
+        if decode_codecs.is_empty() {
+            let render_nodes = fs::read_dir("/dev/dri")
+                .ok()
+                .into_iter()
+                .flatten()
+                .filter_map(Result::ok)
+                .any(|entry| entry.file_name().to_string_lossy().starts_with("renderD"));
+            if render_nodes {
+                return Capability::unavailable(
+                    "DRM render node is present but VA-API/V4L2 codecs were not enumerated",
+                );
+            }
+            return Capability::unavailable("no DRM render node was found");
         }
+
+        Capability::available(
+            MediaInfo {
+                backend: "VA-API/V4L2".to_owned(),
+                hardware_decode_codecs: decode_codecs,
+                hardware_encode_codecs: Vec::new(),
+                notes: Vec::new(),
+            },
+            self.source(ProbeArea::Media),
+        )
     }
 
     fn power(&self) -> Capability<PowerInfo> {
@@ -151,7 +160,7 @@ impl PlatformProbe for NativeProbe {
             ProbeArea::Storage => ("linux-storage", "/proc/self/mountinfo and statvfs"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
             ProbeArea::Gpu => ("linux-gpu", "DRM sysfs"),
-            ProbeArea::Media => ("linux-media", "DRM render nodes"),
+            ProbeArea::Media => ("linux-media", "VA-API and V4L2"),
             ProbeArea::Power => ("linux-power", "power_supply sysfs"),
             ProbeArea::Thermal => ("linux-thermal", "thermal sysfs"),
         };
