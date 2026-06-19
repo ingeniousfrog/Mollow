@@ -53,7 +53,7 @@ cargo run -p mollow -- archive trend --dir ~/.mollow/archive --workload cpu
 | 内存 | `memory.sequential-copy` | 主机端顺序 `copy_from_slice` |
 | 存储 | `storage.sequential-write-read` | 临时文件写入、`sync_all`、校验读回 |
 | GPU | `gpu.wgpu-matrix-multiply` | **wgpu** 计算着色器（Metal / Vulkan / DX12） |
-| 媒体（macOS） | `media.videotoolbox-h264-encode` | **VideoToolbox** 硬件 H.264 编码（稳定化期间可能标记为不可用） |
+| 媒体（macOS） | `media.videotoolbox-h264-encode` | **VideoToolbox** 硬件 H.264 编码 |
 | 媒体（Windows） | `media.media-foundation-h264-decode` | **Media Foundation** 硬件 H.264 解码 |
 | 媒体（Linux） | `media.vaapi-h264-decode` | **VA-API** 硬件 H.264 解码 |
 

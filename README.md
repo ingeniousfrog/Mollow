@@ -56,7 +56,7 @@ cargo run -p mollow -- archive trend --dir ~/.mollow/archive --workload cpu
 | Memory | `memory.sequential-copy` | Host sequential `copy_from_slice` |
 | Storage | `storage.sequential-write-read` | Temp file write, `sync_all`, verified read |
 | GPU | `gpu.wgpu-matrix-multiply` | **wgpu** compute shader (Metal / Vulkan / DX12) |
-| Media (macOS) | `media.videotoolbox-h264-encode` | **VideoToolbox** H.264 hardware encode (may report unavailable while stabilizing) |
+| Media (macOS) | `media.videotoolbox-h264-encode` | **VideoToolbox** hardware H.264 encode |
 | Media (Windows) | `media.media-foundation-h264-decode` | **Media Foundation** hardware H.264 decode |
 | Media (Linux) | `media.vaapi-h264-decode` | **VA-API** hardware H.264 decode |
 
