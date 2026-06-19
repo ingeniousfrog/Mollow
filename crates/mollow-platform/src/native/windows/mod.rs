@@ -10,9 +10,9 @@ use mollow_core::{
 
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
 
-mod windows_gpu;
-mod windows_media;
-mod windows_thermal;
+mod gpu;
+mod media;
+mod thermal;
 
 const ALL_PROCESSOR_GROUPS: u16 = 0xffff;
 const ERROR_SUCCESS: i32 = 0;
@@ -187,7 +187,7 @@ impl PlatformProbe for NativeProbe {
     }
 
     fn gpu(&self) -> Capability<Vec<GpuInfo>> {
-        windows_gpu::enumerate_gpus().map_or_else(
+        gpu::enumerate_gpus().map_or_else(
             |error| {
                 if error.kind() == io::ErrorKind::NotFound {
                     Capability::unavailable(error.to_string())
@@ -200,7 +200,7 @@ impl PlatformProbe for NativeProbe {
     }
 
     fn media(&self) -> Capability<MediaInfo> {
-        windows_media::detect_media().map_or_else(
+        media::detect_media().map_or_else(
             |error| {
                 if error.kind() == io::ErrorKind::NotFound {
                     Capability::unavailable(error.to_string())
@@ -220,7 +220,7 @@ impl PlatformProbe for NativeProbe {
     }
 
     fn thermal(&self) -> Capability<ThermalInfo> {
-        windows_thermal::detect_thermal().map_or_else(
+        thermal::detect_thermal().map_or_else(
             |error| {
                 if error.kind() == io::ErrorKind::NotFound {
                     Capability::unavailable(error.to_string())

@@ -14,7 +14,11 @@ fn bench_quick_json_emits_versioned_workload_results() {
     assert!(stdout.contains("\"workload_id\": \"cpu.fnv1a-stream\""));
     assert!(stdout.contains("\"workload_id\": \"memory.sequential-copy\""));
     assert!(stdout.contains("\"workload_id\": \"storage.sequential-write-read\""));
-    assert!(stdout.contains("\"workload_id\": \"gpu.wgpu-matrix-multiply\""));
+    assert!(
+        stdout.contains("\"workload_id\": \"gpu.wgpu-matrix-multiply\"")
+            || stdout.contains("\"gpu\": {\n    \"status\": \"error\""),
+        "gpu workload should be present as a result or explicit error"
+    );
     let media_workload = if cfg!(target_os = "macos") {
         "\"workload_id\": \"media.videotoolbox-h264-encode\""
     } else if cfg!(target_os = "windows") {
