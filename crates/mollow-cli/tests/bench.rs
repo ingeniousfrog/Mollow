@@ -14,8 +14,8 @@ fn bench_quick_json_emits_versioned_workload_results() {
     assert!(stdout.contains("\"workload_id\": \"cpu.fnv1a-stream\""));
     assert!(stdout.contains("\"workload_id\": \"memory.sequential-copy\""));
     assert!(stdout.contains("\"workload_id\": \"storage.sequential-write-read\""));
-    assert!(stdout.contains("\"workload_id\": \"gpu.matrix-multiply\""));
-    assert!(stdout.contains("\"workload_id\": \"media.frame-bytes-process\""));
+    assert!(stdout.contains("\"workload_id\": \"gpu.wgpu-matrix-multiply\""));
+    assert!(stdout.contains("\"media\":"));
     assert!(stdout.contains("\"median_absolute_deviation\""));
     let expected_profile = if cfg!(debug_assertions) {
         "debug"

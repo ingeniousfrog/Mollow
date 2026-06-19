@@ -42,6 +42,10 @@ pub fn compare_runs(
     if baseline.context.build_profile != "release" || candidate.context.build_profile != "release" {
         reasons.push("release builds are required for comparable performance baselines".to_owned());
     }
+    reasons.extend(environment_incomparable_reasons(
+        &baseline.context.machine_snapshot,
+        &candidate.context.machine_snapshot,
+    ));
     let comparable = reasons.is_empty();
     let environment_warnings = environment_warnings(
         &baseline.context.machine_snapshot,
@@ -75,12 +79,15 @@ pub fn compare_snapshots(
     candidate: &MachineSnapshot,
 ) -> ComparisonReport {
     let environment_warnings = environment_warnings(baseline, candidate);
+    let mut reasons =
+        vec!["snapshot comparison does not include benchmark workload results".to_owned()];
+    reasons.extend(environment_incomparable_reasons(baseline, candidate));
     ComparisonReport {
         schema_version: COMPARISON_SCHEMA_VERSION.to_owned(),
         baseline_started_at_unix_ms: baseline.captured_at_unix_ms,
         candidate_started_at_unix_ms: candidate.captured_at_unix_ms,
         comparable: false,
-        reasons: vec!["snapshot comparison does not include benchmark workload results".to_owned()],
+        reasons,
         environment_warnings,
         machine_changes: machine_changes(baseline, candidate),
         cpu: unavailable(vec!["snapshot comparison only".to_owned()]),
@@ -442,6 +449,42 @@ fn environment_warnings(baseline: &MachineSnapshot, candidate: &MachineSnapshot)
     warnings
 }
 
+fn environment_incomparable_reasons(
+    baseline: &MachineSnapshot,
+    candidate: &MachineSnapshot,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if power_source(baseline) != power_source(candidate) {
+        reasons.push(format!(
+            "power source differs: {} vs {}",
+            power_source(baseline).unwrap_or("unknown"),
+            power_source(candidate).unwrap_or("unknown")
+        ));
+    }
+    if power_source(baseline) == Some("battery") || power_source(candidate) == Some("battery") {
+        reasons.push(
+            "at least one capture was taken on battery power; use AC power for comparable baselines"
+                .to_owned(),
+        );
+    }
+    if low_power_mode(baseline) == Some(true) || low_power_mode(candidate) == Some(true) {
+        reasons.push(
+            "low power mode is enabled on at least one capture; disable it before benchmarking"
+                .to_owned(),
+        );
+    }
+    for (label, snapshot) in [("baseline", baseline), ("candidate", candidate)] {
+        if let Some(state) = thermal_state(snapshot) {
+            if state == "warning" || state == "critical" {
+                reasons.push(format!(
+                    "{label} thermal state is {state}; wait for cooling before comparing"
+                ));
+            }
+        }
+    }
+    reasons
+}
+
 fn power_source(snapshot: &MachineSnapshot) -> Option<&str> {
     snapshot
         .power
@@ -518,6 +561,39 @@ mod tests {
             report.cpu.classification,
             mollow_core::ChangeClassification::NotComparable
         );
+    }
+
+    #[test]
+    fn battery_power_makes_runs_not_comparable() {
+        let mut baseline = fixture_run(1000, BenchmarkProfile::Quick, "release");
+        let mut candidate = fixture_run(1000, BenchmarkProfile::Quick, "release");
+        baseline.context.machine_snapshot.power = power_capability("ac");
+        candidate.context.machine_snapshot.power = power_capability("battery");
+
+        let report = compare_runs(&baseline, &candidate).expect("runs should compare");
+
+        assert!(!report.comparable);
+        assert!(
+            report
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("battery"))
+        );
+    }
+
+    fn power_capability(source: &str) -> Capability<mollow_core::PowerInfo> {
+        Capability::available(
+            mollow_core::PowerInfo {
+                source: source.to_owned(),
+                battery_percent: None,
+                charging: None,
+                low_power_mode: Some(false),
+            },
+            DataSource {
+                provider: "fixture".to_owned(),
+                detail: None,
+            },
+        )
     }
 
     fn fixture_run(rate: u64, profile: BenchmarkProfile, build_profile: &str) -> BenchmarkRun {

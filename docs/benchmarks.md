@@ -57,13 +57,19 @@ The reported storage rate combines synchronized sequential write bytes and
 sequential readback bytes. It may still be influenced by filesystem caching,
 encryption, free space, and the temporary directory's backing volume.
 
-## Deferred workloads
+## GPU and media workloads
 
-GPU and media benchmarks now run deterministic host-side workloads:
+GPU and media benchmarks use platform-native backends where available:
 
-- GPU: `gpu.matrix-multiply`
-- Media: `media.frame-bytes-process`
+- GPU: `gpu.wgpu-matrix-multiply` (v2) — wgpu compute shader matrix multiply
+- Media (macOS): `media.videotoolbox-h264-encode` (v2) — VideoToolbox hardware H.264 encode
+- Media (Windows): `media.media-foundation-h264-decode` (v2) — Media Foundation hardware decode
+- Media (Linux): `media.vaapi-h264-decode` (v2) — VA-API H.264 hardware decode
 
-Platform-native hardware codec and GPU compute backends may extend these
-workloads in later revisions. Mollow does not infer those results from device
-names alone.
+All media workloads use platform-native hardware codecs. Windows and Linux decode a
+bundled minimal H.264 baseline fixture (`fixtures/minimal-baseline.h264`). macOS
+encodes deterministic NV12 frames through VideoToolbox. If the platform backend or
+hardware codec path is unavailable, the workload is recorded as an error capability
+rather than falling back to a synthetic host transform.
+
+Mollow does not infer GPU or media performance from device names alone.

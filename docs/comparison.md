@@ -23,9 +23,16 @@ state, and runtime versions. Such changes do not silently alter the percentage;
 they remain visible context for interpreting it.
 
 When power source, low power mode, or thermal state differs between captures,
-Mollow also emits `environment_warnings` in comparison reports. These warnings
-do not automatically mark a benchmark comparison as not comparable, but they are
+Mollow emits `environment_warnings` in comparison reports. These warnings are
 highlighted in terminal, Markdown, and HTML output.
 
-Machine state can vary between captures. Mollow therefore preserves raw
-samples, MAD-based variation, warnings, and both embedded machine snapshots.
+**Strict environment mode:** the following conditions also add entries to
+`reasons` and set `comparable` to `false`:
+
+- power source differs between baseline and candidate;
+- either capture was taken on battery power;
+- low power mode is enabled on either side;
+- either side reports thermal state `warning` or `critical`.
+
+Machine field changes (OS, CPU, memory, GPU, runtimes) remain visible context
+and do not silently alter workload percentage deltas.

@@ -1,3 +1,5 @@
+mod gpu;
+mod media;
 mod statistics;
 mod workloads;
 
@@ -42,14 +44,21 @@ pub fn run_suite(
     started_at_unix_ms: u64,
     machine_snapshot: MachineSnapshot,
 ) -> Result<BenchmarkRun, BenchmarkError> {
-    let source = |workload: &str| DataSource {
-        provider: "mollow-bench".to_owned(),
-        detail: Some(format!("{workload} workload version 1")),
-    };
-    let observe = |result: Result<WorkloadResult, BenchmarkError>, workload: &str| {
+    let observe = |result: Result<WorkloadResult, BenchmarkError>| {
         result.map_or_else(
             |error| Capability::error(error.to_string()),
-            |value| Capability::available(value, source(workload)),
+            |value| {
+                Capability::available(
+                    value.clone(),
+                    DataSource {
+                        provider: "mollow-bench".to_owned(),
+                        detail: Some(format!(
+                            "{} workload version {}",
+                            value.workload_id, value.workload_version
+                        )),
+                    },
+                )
+            },
         )
     };
 
@@ -66,11 +75,11 @@ pub fn run_suite(
     } else {
         None
     };
-    let cpu = observe(workloads::run_cpu(profile), "cpu");
-    let memory = observe(workloads::run_memory(profile), "memory");
-    let storage = observe(workloads::run_storage(profile), "storage");
-    let gpu = observe(workloads::run_gpu(profile), "gpu");
-    let media = observe(workloads::run_media(profile), "media");
+    let cpu = observe(workloads::run_cpu(profile));
+    let memory = observe(workloads::run_memory(profile));
+    let storage = observe(workloads::run_storage(profile));
+    let gpu = observe(workloads::run_gpu(profile));
+    let media = observe(workloads::run_media(profile));
     let warnings = std::iter::once(build_warning)
         .flatten()
         .chain(
