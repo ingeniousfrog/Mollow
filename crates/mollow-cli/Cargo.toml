@@ -1,0 +1,20 @@
+[package]
+name = "mollow"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "mollow"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+mollow-platform = { path = "../mollow-platform" }
+mollow-report = { path = "../mollow-report" }
+
+[lints]
+workspace = true
+

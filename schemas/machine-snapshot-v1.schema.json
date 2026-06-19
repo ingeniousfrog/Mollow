@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mollow.dev/schemas/machine-snapshot-v1.schema.json",
+  "title": "Mollow Machine Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mollow_version",
+    "captured_at_unix_ms",
+    "system",
+    "cpu",
+    "memory",
+    "storage",
+    "gpu",
+    "media",
+    "power",
+    "thermal",
+    "runtimes",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "mollow_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "captured_at_unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "system": {
+      "$ref": "#/$defs/systemCapability"
+    },
+    "cpu": {
+      "$ref": "#/$defs/cpuCapability"
+    },
+    "memory": {
+      "$ref": "#/$defs/memoryCapability"
+    },
+    "storage": {
+      "$ref": "#/$defs/pendingCapability"
+    },
+    "gpu": {
+      "$ref": "#/$defs/pendingCapability"
+    },
+    "media": {
+      "$ref": "#/$defs/pendingCapability"
+    },
+    "power": {
+      "$ref": "#/$defs/pendingCapability"
+    },
+    "thermal": {
+      "$ref": "#/$defs/pendingCapability"
+    },
+    "runtimes": {
+      "$ref": "#/$defs/pendingCapability"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "available",
+        "unsupported",
+        "permission_denied",
+        "unavailable",
+        "error"
+      ]
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "detail"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detail": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "systemCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value",
+        "source",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/systemInfo"
+            }
+          ]
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/source"
+            }
+          ]
+        },
+        "message": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "cpuCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value",
+        "source",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/cpuInfo"
+            }
+          ]
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/source"
+            }
+          ]
+        },
+        "message": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "memoryCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value",
+        "source",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/memoryInfo"
+            }
+          ]
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/source"
+            }
+          ]
+        },
+        "message": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "pendingCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value",
+        "source",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "value": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/source"
+            }
+          ]
+        },
+        "message": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "systemInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os_name",
+        "os_version",
+        "kernel_version",
+        "architecture",
+        "hostname"
+      ],
+      "properties": {
+        "os_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "os_version": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "kernel_version": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hostname": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "cpuInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "physical_cores",
+        "logical_cores"
+      ],
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "physical_cores": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "logical_cores": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "memoryInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_bytes",
+        "available_bytes"
+      ],
+      "properties": {
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "available_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
+

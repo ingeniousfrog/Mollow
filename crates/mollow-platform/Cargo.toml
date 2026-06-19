@@ -1,0 +1,13 @@
+[package]
+name = "mollow-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mollow-core = { path = "../mollow-core" }
+
+[lints]
+workspace = true
