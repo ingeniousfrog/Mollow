@@ -173,8 +173,7 @@ mod tests {
         const UINT_FIELDS_BYTES: usize = 4 * 4;
         const SIZE_T_FIELDS_BYTES: usize = 2 * std::mem::size_of::<usize>();
         const LUID_BYTES: usize = 8;
-        let expected =
-            DESCRIPTION_BYTES + UINT_FIELDS_BYTES + SIZE_T_FIELDS_BYTES + LUID_BYTES;
+        let expected = DESCRIPTION_BYTES + UINT_FIELDS_BYTES + SIZE_T_FIELDS_BYTES + LUID_BYTES;
         assert_eq!(std::mem::size_of::<DxgiAdapterDesc>(), expected);
     }
 }
