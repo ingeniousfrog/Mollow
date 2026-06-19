@@ -10,7 +10,7 @@ fn bench_quick_json_emits_versioned_workload_results() {
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    assert!(stdout.contains("\"schema_version\": \"1.0.0\""));
+    assert!(stdout.contains("\"schema_version\": \"2.0.0\""));
     assert!(stdout.contains("\"workload_id\": \"cpu.fnv1a-stream\""));
     assert!(stdout.contains("\"workload_id\": \"memory.sequential-copy\""));
     assert!(stdout.contains("\"workload_id\": \"storage.sequential-write-read\""));

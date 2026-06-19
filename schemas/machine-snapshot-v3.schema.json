@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mollow.dev/schemas/machine-snapshot-v3.schema.json",
+  "title": "Mollow Machine Snapshot v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mollow_version",
+    "captured_at_unix_ms",
+    "system",
+    "cpu",
+    "memory",
+    "storage",
+    "gpu",
+    "media",
+    "power",
+    "thermal",
+    "runtimes",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "mollow_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "captured_at_unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "system": {
+      "$ref": "#/$defs/genericCapability"
+    },
+    "cpu": {
+      "$ref": "#/$defs/genericCapability"
+    },
+    "memory": {
+      "$ref": "#/$defs/genericCapability"
+    },
+    "storage": {
+      "$ref": "#/$defs/genericCapability"
+    },
+    "gpu": {
+      "$ref": "#/$defs/gpuCapability"
+    },
+    "media": {
+      "$ref": "#/$defs/mediaCapability"
+    },
+    "power": {
+      "$ref": "#/$defs/powerCapability"
+    },
+    "thermal": {
+      "$ref": "#/$defs/thermalCapability"
+    },
+    "runtimes": {
+      "$ref": "#/$defs/genericCapability"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "available",
+        "unsupported",
+        "permission_denied",
+        "unavailable",
+        "error"
+      ]
+    },
+    "source": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "provider",
+        "detail"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "detail": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "genericCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value",
+        "source",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "value": {},
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "gpuCapability": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/genericCapability"
+        }
+      ],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/gpuInfo"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "mediaCapability": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/genericCapability"
+        }
+      ],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/mediaInfo"
+            }
+          ]
+        }
+      }
+    },
+    "powerCapability": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/genericCapability"
+        }
+      ],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/powerInfo"
+            }
+          ]
+        }
+      }
+    },
+    "thermalCapability": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/genericCapability"
+        }
+      ],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/thermalInfo"
+            }
+          ]
+        }
+      }
+    },
+    "gpuInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "vendor",
+        "driver_version",
+        "memory_bytes",
+        "apis"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vendor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "driver_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "memory_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "apis": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "mediaInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "hardware_decode_codecs",
+        "hardware_encode_codecs",
+        "notes"
+      ],
+      "properties": {
+        "backend": {
+          "type": "string"
+        },
+        "hardware_decode_codecs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hardware_encode_codecs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "powerInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "battery_percent",
+        "charging",
+        "low_power_mode"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "battery_percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "charging": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "low_power_mode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "thermalInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "temperature_milli_celsius",
+        "sensor"
+      ],
+      "properties": {
+        "state": {
+          "type": "string"
+        },
+        "temperature_milli_celsius": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "sensor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

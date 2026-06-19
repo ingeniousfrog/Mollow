@@ -2,9 +2,11 @@ use std::ffi::{CStr, CString};
 use std::fs;
 use std::io;
 use std::mem::MaybeUninit;
+use std::path::Path;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, MemoryInfo, RuntimeInfo, StorageVolume, SwapInfo, SystemInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, PowerInfo, RuntimeInfo,
+    StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
 use crate::linux_parse::{parse_cpuinfo, parse_meminfo, parse_mountinfo, parse_os_release};
@@ -89,6 +91,58 @@ impl PlatformProbe for NativeProbe {
         detect_runtimes()
     }
 
+    fn gpu(&self) -> Capability<Vec<GpuInfo>> {
+        linux_gpus().map_or_else(
+            |error| Capability::error(error.to_string()),
+            |gpus| {
+                if gpus.is_empty() {
+                    Capability::unavailable("no DRM GPU devices were found")
+                } else {
+                    Capability::available(gpus, self.source(ProbeArea::Gpu))
+                }
+            },
+        )
+    }
+
+    fn media(&self) -> Capability<MediaInfo> {
+        let render_nodes = fs::read_dir("/dev/dri")
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().starts_with("renderD"));
+        if render_nodes {
+            Capability::available(
+                MediaInfo {
+                    backend: "DRM render node".to_owned(),
+                    hardware_decode_codecs: Vec::new(),
+                    hardware_encode_codecs: Vec::new(),
+                    notes: vec![
+                        "codec enumeration requires a VA-API or V4L2 backend planned for a future workload revision"
+                            .to_owned(),
+                    ],
+                },
+                self.source(ProbeArea::Media),
+            )
+        } else {
+            Capability::unavailable("no DRM render node was found")
+        }
+    }
+
+    fn power(&self) -> Capability<PowerInfo> {
+        linux_power().map_or_else(
+            |error| Capability::unavailable(error.to_string()),
+            |power| Capability::available(power, self.source(ProbeArea::Power)),
+        )
+    }
+
+    fn thermal(&self) -> Capability<ThermalInfo> {
+        linux_thermal().map_or_else(
+            |error| Capability::unavailable(error.to_string()),
+            |thermal| Capability::available(thermal, self.source(ProbeArea::Thermal)),
+        )
+    }
+
     fn source(&self, area: ProbeArea) -> DataSource {
         let (provider, detail) = match area {
             ProbeArea::System => ("linux-system", "/etc/os-release and uname"),
@@ -96,6 +150,10 @@ impl PlatformProbe for NativeProbe {
             ProbeArea::Memory => ("linux-memory", "/proc/meminfo"),
             ProbeArea::Storage => ("linux-storage", "/proc/self/mountinfo and statvfs"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
+            ProbeArea::Gpu => ("linux-gpu", "DRM sysfs"),
+            ProbeArea::Media => ("linux-media", "DRM render nodes"),
+            ProbeArea::Power => ("linux-power", "power_supply sysfs"),
+            ProbeArea::Thermal => ("linux-thermal", "thermal sysfs"),
         };
 
         DataSource {
@@ -103,6 +161,135 @@ impl PlatformProbe for NativeProbe {
             detail: Some(detail.to_owned()),
         }
     }
+}
+
+fn linux_gpus() -> io::Result<Vec<GpuInfo>> {
+    let entries = fs::read_dir("/sys/class/drm")?;
+    let mut gpus = Vec::new();
+    for entry in entries.filter_map(Result::ok) {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !is_drm_card(&name) {
+            continue;
+        }
+        let device = entry.path().join("device");
+        if !device.exists() {
+            continue;
+        }
+        let vendor_id = read_trimmed(device.join("vendor")).ok();
+        let device_id = read_trimmed(device.join("device")).ok();
+        let vendor = vendor_id.as_deref().map(pci_vendor_name);
+        let driver = fs::read_link(device.join("driver")).ok().and_then(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+        });
+        let driver_version = driver.as_ref().and_then(|driver| {
+            read_trimmed(Path::new("/sys/module").join(driver).join("version")).ok()
+        });
+        gpus.push(GpuInfo {
+            name: format!(
+                "{} {}",
+                vendor.as_deref().unwrap_or("PCI GPU"),
+                device_id.as_deref().unwrap_or("unknown")
+            ),
+            vendor,
+            driver_version,
+            memory_bytes: None,
+            apis: vec!["DRM".to_owned()],
+        });
+    }
+    Ok(gpus)
+}
+
+fn is_drm_card(name: &str) -> bool {
+    name.strip_prefix("card").is_some_and(|suffix| {
+        !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
+    })
+}
+
+fn pci_vendor_name(id: &str) -> String {
+    match id.trim_start_matches("0x").to_ascii_lowercase().as_str() {
+        "1002" => "AMD".to_owned(),
+        "10de" => "NVIDIA".to_owned(),
+        "8086" => "Intel".to_owned(),
+        "106b" => "Apple".to_owned(),
+        other => format!("PCI {other}"),
+    }
+}
+
+fn linux_power() -> io::Result<PowerInfo> {
+    let entries = fs::read_dir("/sys/class/power_supply")?;
+    let mut ac_online = false;
+    let mut battery = None;
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let supply_type = read_trimmed(path.join("type")).unwrap_or_default();
+        if supply_type == "Mains" || supply_type == "USB" {
+            ac_online |= read_trimmed(path.join("online")).is_ok_and(|value| value == "1");
+        }
+        if supply_type == "Battery" && battery.is_none() {
+            let percent = read_trimmed(path.join("capacity"))
+                .ok()
+                .and_then(|value| value.parse::<u8>().ok());
+            let status = read_trimmed(path.join("status")).unwrap_or_default();
+            battery = Some((percent, status));
+        }
+    }
+    let (battery_percent, status) =
+        battery.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no battery found"))?;
+    Ok(PowerInfo {
+        source: if ac_online { "ac" } else { "battery" }.to_owned(),
+        battery_percent,
+        charging: match status.as_str() {
+            "Charging" => Some(true),
+            "Discharging" | "Full" => Some(false),
+            _ => None,
+        },
+        low_power_mode: None,
+    })
+}
+
+fn linux_thermal() -> io::Result<ThermalInfo> {
+    let entries = fs::read_dir("/sys/class/thermal")?;
+    let mut hottest: Option<(i64, String)> = None;
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with("thermal_zone")
+        {
+            continue;
+        }
+        let Ok(value) = read_trimmed(path.join("temp")).and_then(|value| {
+            value
+                .parse::<i64>()
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
+        }) else {
+            continue;
+        };
+        let sensor = read_trimmed(path.join("type")).unwrap_or_else(|_| "unknown".to_owned());
+        if hottest.as_ref().is_none_or(|current| value > current.0) {
+            hottest = Some((value, sensor));
+        }
+    }
+    let (temperature, sensor) = hottest
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no thermal sensors found"))?;
+    Ok(ThermalInfo {
+        state: if temperature >= 90_000 {
+            "critical"
+        } else if temperature >= 80_000 {
+            "warning"
+        } else {
+            "normal"
+        }
+        .to_owned(),
+        temperature_milli_celsius: Some(temperature),
+        sensor: Some(sensor),
+    })
+}
+
+fn read_trimmed(path: impl AsRef<Path>) -> io::Result<String> {
+    Ok(fs::read_to_string(path)?.trim().to_owned())
 }
 
 struct Uname {

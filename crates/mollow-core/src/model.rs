@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: &str = "2.0.0";
-pub const BENCHMARK_SCHEMA_VERSION: &str = "1.0.0";
+pub const SCHEMA_VERSION: &str = "3.0.0";
+pub const BENCHMARK_SCHEMA_VERSION: &str = "2.0.0";
+pub const COMPARISON_SCHEMA_VERSION: &str = "1.0.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -63,6 +64,15 @@ impl<T> Capability<T> {
             message: Some(message.into()),
         }
     }
+
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        Self {
+            status: CapabilityStatus::Unavailable,
+            value: None,
+            source: None,
+            message: Some(message.into()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,6 +119,38 @@ pub struct StorageVolume {
 pub struct RuntimeInfo {
     pub name: String,
     pub version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GpuInfo {
+    pub name: String,
+    pub vendor: Option<String>,
+    pub driver_version: Option<String>,
+    pub memory_bytes: Option<u64>,
+    pub apis: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaInfo {
+    pub backend: String,
+    pub hardware_decode_codecs: Vec<String>,
+    pub hardware_encode_codecs: Vec<String>,
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PowerInfo {
+    pub source: String,
+    pub battery_percent: Option<u8>,
+    pub charging: Option<bool>,
+    pub low_power_mode: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ThermalInfo {
+    pub state: String,
+    pub temperature_milli_celsius: Option<i64>,
+    pub sensor: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -172,6 +214,53 @@ pub struct BenchmarkRun {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeClassification {
+    Improvement,
+    Regression,
+    Stable,
+    NotComparable,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkloadComparison {
+    pub classification: ChangeClassification,
+    pub baseline_rate_per_second: Option<u64>,
+    pub candidate_rate_per_second: Option<u64>,
+    pub change_basis_points: Option<i32>,
+    pub threshold_basis_points: u32,
+    pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MachineChange {
+    pub field: String,
+    pub baseline: Option<String>,
+    pub candidate: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ComponentChange {
+    pub component: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ComparisonReport {
+    pub schema_version: String,
+    pub baseline_started_at_unix_ms: u64,
+    pub candidate_started_at_unix_ms: u64,
+    pub comparable: bool,
+    pub reasons: Vec<String>,
+    pub machine_changes: Vec<MachineChange>,
+    pub cpu: WorkloadComparison,
+    pub memory: WorkloadComparison,
+    pub storage: WorkloadComparison,
+    pub component_changes: Vec<ComponentChange>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingCapability {}
 
@@ -184,10 +273,10 @@ pub struct MachineSnapshot {
     pub cpu: Capability<CpuInfo>,
     pub memory: Capability<MemoryInfo>,
     pub storage: Capability<Vec<StorageVolume>>,
-    pub gpu: Capability<PendingCapability>,
-    pub media: Capability<PendingCapability>,
-    pub power: Capability<PendingCapability>,
-    pub thermal: Capability<PendingCapability>,
+    pub gpu: Capability<Vec<GpuInfo>>,
+    pub media: Capability<MediaInfo>,
+    pub power: Capability<PowerInfo>,
+    pub thermal: Capability<ThermalInfo>,
     pub runtimes: Capability<Vec<RuntimeInfo>>,
     pub warnings: Vec<String>,
 }

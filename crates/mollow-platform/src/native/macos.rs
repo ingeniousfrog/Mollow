@@ -1,11 +1,13 @@
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::io;
 use std::mem::size_of;
+use std::process::Command;
 use std::ptr;
 use std::slice;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, MemoryInfo, RuntimeInfo, StorageVolume, SwapInfo, SystemInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, PowerInfo, RuntimeInfo,
+    StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
@@ -32,6 +34,11 @@ unsafe extern "C" {
         host_info: *mut c_int,
         host_info_count: *mut MachMessageTypeNumber,
     ) -> KernReturn;
+}
+
+#[link(name = "VideoToolbox", kind = "framework")]
+unsafe extern "C" {
+    fn VTIsHardwareDecodeSupported(codec_type: u32) -> u8;
 }
 
 #[derive(Default)]
@@ -150,18 +157,216 @@ impl PlatformProbe for NativeProbe {
         detect_runtimes()
     }
 
+    fn gpu(&self) -> Capability<Vec<GpuInfo>> {
+        run_command(
+            "/usr/sbin/system_profiler",
+            &["-json", "SPDisplaysDataType"],
+        )
+        .and_then(|output| parse_gpu_json(&output))
+        .map_or_else(
+            |error| Capability::error(error.to_string()),
+            |value| Capability::available(value, self.source(ProbeArea::Gpu)),
+        )
+    }
+
+    fn media(&self) -> Capability<MediaInfo> {
+        let codecs = [
+            ("h264", fourcc(*b"avc1")),
+            ("hevc", fourcc(*b"hvc1")),
+            ("vp9", fourcc(*b"vp09")),
+            ("av1", fourcc(*b"av01")),
+        ];
+        let hardware_decode_codecs = codecs
+            .into_iter()
+            .filter(|(_, codec)| {
+                // SAFETY: Codec values are valid CoreMedia four-character codes.
+                unsafe { VTIsHardwareDecodeSupported(*codec) != 0 }
+            })
+            .map(|(name, _)| name.to_owned())
+            .collect();
+        Capability::available(
+            MediaInfo {
+                backend: "VideoToolbox".to_owned(),
+                hardware_decode_codecs,
+                hardware_encode_codecs: Vec::new(),
+                notes: vec![
+                    "hardware encode codec enumeration is not exposed by this probe".to_owned(),
+                ],
+            },
+            self.source(ProbeArea::Media),
+        )
+    }
+
+    fn power(&self) -> Capability<PowerInfo> {
+        run_command("/usr/bin/pmset", &["-g", "batt"])
+            .map(|output| parse_pmset_battery(&output))
+            .map_or_else(
+                |error| Capability::error(error.to_string()),
+                |value| {
+                    let low_power_mode = run_command("/usr/bin/pmset", &["-g", "custom"])
+                        .ok()
+                        .and_then(|output| parse_low_power_mode(&output));
+                    Capability::available(
+                        PowerInfo {
+                            source: value.source,
+                            battery_percent: value.battery_percent,
+                            charging: value.charging,
+                            low_power_mode,
+                        },
+                        self.source(ProbeArea::Power),
+                    )
+                },
+            )
+    }
+
+    fn thermal(&self) -> Capability<ThermalInfo> {
+        match run_command("/usr/bin/pmset", &["-g", "therm"]) {
+            Ok(output)
+                if output
+                    .lines()
+                    .any(|line| line.trim_start().starts_with("Error:")) =>
+            {
+                Capability::unavailable(output.trim().to_owned())
+            }
+            Ok(output) => Capability::available(
+                ThermalInfo {
+                    state: parse_thermal_state(&output),
+                    temperature_milli_celsius: None,
+                    sensor: None,
+                },
+                self.source(ProbeArea::Thermal),
+            ),
+            Err(error) => Capability::unavailable(error.to_string()),
+        }
+    }
+
     fn source(&self, area: ProbeArea) -> DataSource {
         let (provider, detail) = match area {
             ProbeArea::System | ProbeArea::Cpu => ("macos-sysctl", "sysctlbyname FFI"),
             ProbeArea::Memory => ("macos-memory", "sysctlbyname and Mach host statistics"),
             ProbeArea::Storage => ("macos-storage", "getmntinfo"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
+            ProbeArea::Gpu => ("macos-gpu", "system_profiler JSON"),
+            ProbeArea::Media => ("macos-media", "VideoToolbox FFI"),
+            ProbeArea::Power => ("macos-power", "pmset"),
+            ProbeArea::Thermal => ("macos-thermal", "pmset thermal state"),
         };
 
         DataSource {
             provider: provider.to_owned(),
             detail: Some(detail.to_owned()),
         }
+    }
+}
+
+const fn fourcc(value: [u8; 4]) -> u32 {
+    ((value[0] as u32) << 24)
+        | ((value[1] as u32) << 16)
+        | ((value[2] as u32) << 8)
+        | value[3] as u32
+}
+
+fn run_command(executable: &str, arguments: &[&str]) -> io::Result<String> {
+    let output = Command::new(executable).args(arguments).output()?;
+    if !output.status.success() {
+        let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        return Err(io::Error::other(if message.is_empty() {
+            format!("{executable} exited with {}", output.status)
+        } else {
+            message
+        }));
+    }
+    String::from_utf8(output.stdout)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
+}
+
+fn parse_gpu_json(input: &str) -> io::Result<Vec<GpuInfo>> {
+    let value: serde_json::Value = serde_json::from_str(input)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let entries = value
+        .get("SPDisplaysDataType")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "missing SPDisplaysDataType"))?;
+    Ok(entries
+        .iter()
+        .filter_map(|entry| {
+            let name = entry
+                .get("sppci_model")
+                .or_else(|| entry.get("_name"))
+                .and_then(serde_json::Value::as_str)?;
+            let vendor = entry
+                .get("spdisplays_vendor")
+                .and_then(serde_json::Value::as_str)
+                .map(clean_system_profiler_value);
+            let mut apis = Vec::new();
+            if entry.get("spdisplays_metal").is_some() {
+                apis.push("Metal".to_owned());
+            }
+            Some(GpuInfo {
+                name: name.to_owned(),
+                vendor,
+                driver_version: entry
+                    .get("spdisplays_gmux-version")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                memory_bytes: None,
+                apis,
+            })
+        })
+        .collect())
+}
+
+fn clean_system_profiler_value(value: &str) -> String {
+    value
+        .strip_prefix("sppci_vendor_")
+        .unwrap_or(value)
+        .to_owned()
+}
+
+fn parse_pmset_battery(input: &str) -> PowerInfo {
+    let source = if input.contains("AC Power") {
+        "ac"
+    } else if input.contains("Battery Power") {
+        "battery"
+    } else {
+        "unknown"
+    };
+    let percent = input
+        .split_whitespace()
+        .find_map(|part| part.strip_suffix("%;"))
+        .and_then(|value| value.parse::<u8>().ok());
+    let charging = if input.contains("discharging") || input.contains("charged") {
+        Some(false)
+    } else if input.contains("charging") {
+        Some(true)
+    } else {
+        None
+    };
+    PowerInfo {
+        source: source.to_owned(),
+        battery_percent: percent,
+        charging,
+        low_power_mode: None,
+    }
+}
+
+fn parse_low_power_mode(input: &str) -> Option<bool> {
+    input.lines().find_map(|line| {
+        let line = line.trim();
+        line.strip_prefix("lowpowermode")
+            .and_then(|value| value.trim().parse::<u8>().ok())
+            .map(|value| value != 0)
+    })
+}
+
+fn parse_thermal_state(input: &str) -> String {
+    let normalized = input.to_ascii_lowercase();
+    if normalized.contains("critical") {
+        "critical".to_owned()
+    } else if normalized.contains("warning level") && !normalized.contains("no thermal warning") {
+        "warning".to_owned()
+    } else {
+        "normal".to_owned()
     }
 }
 
@@ -377,4 +582,38 @@ fn read_sysctl_number<T>(name: &str, value: *mut T) -> io::Result<()> {
 
 fn c_name(name: &str) -> io::Result<CString> {
     CString::new(name).map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))
+}
+
+#[cfg(test)]
+mod advanced_tests {
+    use super::*;
+
+    #[test]
+    fn battery_parser_preserves_source_charge_and_percentage() {
+        let input = "Now drawing from 'AC Power'\n -InternalBattery-0\t88%; charging;";
+
+        let power = parse_pmset_battery(input);
+
+        assert_eq!(power.source, "ac");
+        assert_eq!(power.battery_percent, Some(88));
+        assert_eq!(power.charging, Some(true));
+    }
+
+    #[test]
+    fn battery_parser_does_not_treat_discharging_as_charging() {
+        let input = "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging;";
+
+        let power = parse_pmset_battery(input);
+
+        assert_eq!(power.source, "battery");
+        assert_eq!(power.charging, Some(false));
+    }
+
+    #[test]
+    fn no_recorded_thermal_warning_is_normal() {
+        assert_eq!(
+            parse_thermal_state("No thermal warning level has been recorded"),
+            "normal"
+        );
+    }
 }

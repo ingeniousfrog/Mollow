@@ -38,8 +38,11 @@ From the repository root:
 
 ```bash
 cargo build --workspace
-cargo run -p mollow -- inspect --format json
+cargo run -p mollow -- inspect --format terminal --lang zh-CN
 cargo run --release -p mollow -- bench --profile quick --format json
+cargo run --release -p mollow -- capture --output baseline.json
+cargo run -p mollow -- compare baseline.json candidate.json --format markdown
+cargo run -p mollow -- report baseline.json --format html --output report.html
 ```
 
 Run the quality checks:
@@ -54,8 +57,9 @@ cargo test --workspace
 
 - `crates/mollow-core`: versioned domain model and capability semantics
 - `crates/mollow-bench`: versioned CPU, memory, and storage workloads
+- `crates/mollow-compare`: comparability checks and field-level baseline changes
 - `crates/mollow-platform`: collection contracts and native adapters
-- `crates/mollow-report`: JSON and future human-readable renderers
+- `crates/mollow-report`: bilingual JSON, terminal, Markdown, and HTML renderers
 - `crates/mollow-cli`: command-line interface and application coordination
 - `schemas`: versioned export contracts
 - `docs`: architecture and decision records
@@ -63,3 +67,16 @@ cargo test --workspace
 See [the architecture guide](docs/architecture.md) for design boundaries and
 schema evolution rules. See [the benchmark methodology](docs/benchmarks.md)
 before comparing or archiving performance results.
+
+## Current capabilities
+
+- macOS: native system/CPU/memory/storage probes, GPU via `system_profiler`,
+  VideoToolbox hardware decode detection, battery/power state, and thermal
+  status when the operating system exposes it.
+- Linux: `/proc`, sysfs, DRM, power-supply, and thermal-zone probes.
+- Windows: Win32/NT system, CPU, memory, storage, and power probes; GPU, media,
+  and thermal probes remain explicitly unsupported.
+- Reports: JSON, terminal, Markdown, and self-contained HTML in English or
+  Chinese.
+- Baselines: capture, compare, machine/runtime change detection, and explicit
+  non-comparability reasons.

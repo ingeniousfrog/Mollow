@@ -4,8 +4,8 @@ mod native;
 mod runtimes;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, MachineSnapshot, MemoryInfo, PendingCapability, RuntimeInfo,
-    SCHEMA_VERSION, StorageVolume, SystemInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MachineSnapshot, MediaInfo, MemoryInfo, PowerInfo,
+    RuntimeInfo, SCHEMA_VERSION, StorageVolume, SystemInfo, ThermalInfo,
 };
 
 pub use native::NativeProbe;
@@ -18,6 +18,10 @@ pub enum ProbeArea {
     Memory,
     Storage,
     Runtimes,
+    Gpu,
+    Media,
+    Power,
+    Thermal,
 }
 
 pub trait PlatformProbe {
@@ -59,6 +63,22 @@ pub trait PlatformProbe {
     /// Returns a [`ProbeError`] when runtime discovery cannot be completed.
     fn runtimes(&self) -> Result<Vec<RuntimeInfo>, ProbeError>;
 
+    fn gpu(&self) -> Capability<Vec<GpuInfo>> {
+        Capability::unsupported("GPU capability detection is not implemented for this platform")
+    }
+
+    fn media(&self) -> Capability<MediaInfo> {
+        Capability::unsupported("media capability detection is not implemented for this platform")
+    }
+
+    fn power(&self) -> Capability<PowerInfo> {
+        Capability::unsupported("power capability detection is not implemented for this platform")
+    }
+
+    fn thermal(&self) -> Capability<ThermalInfo> {
+        Capability::unsupported("thermal capability detection is not implemented for this platform")
+    }
+
     fn source(&self, area: ProbeArea) -> DataSource;
 }
 
@@ -97,8 +117,6 @@ pub fn collect_snapshot(
     let memory = observe(probe.memory(), &probe.source(ProbeArea::Memory));
     let storage = observe(probe.storage(), &probe.source(ProbeArea::Storage));
     let runtimes = observe(probe.runtimes(), &probe.source(ProbeArea::Runtimes));
-    let pending = || Capability::<PendingCapability>::unsupported("planned for a future phase");
-
     MachineSnapshot {
         schema_version: SCHEMA_VERSION.to_owned(),
         mollow_version: mollow_version.to_owned(),
@@ -107,10 +125,10 @@ pub fn collect_snapshot(
         cpu,
         memory,
         storage,
-        gpu: pending(),
-        media: pending(),
-        power: pending(),
-        thermal: pending(),
+        gpu: probe.gpu(),
+        media: probe.media(),
+        power: probe.power(),
+        thermal: probe.thermal(),
         runtimes,
         warnings: Vec::new(),
     }

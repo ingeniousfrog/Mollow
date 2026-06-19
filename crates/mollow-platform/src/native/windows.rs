@@ -4,7 +4,8 @@ use std::mem::size_of;
 use std::ptr;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, MemoryInfo, RuntimeInfo, StorageVolume, SwapInfo, SystemInfo,
+    Capability, CpuInfo, DataSource, MemoryInfo, PowerInfo, RuntimeInfo, StorageVolume, SwapInfo,
+    SystemInfo,
 };
 
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
@@ -43,6 +44,16 @@ struct OsVersionInfoEx {
     reserved: u8,
 }
 
+#[repr(C)]
+struct SystemPowerStatus {
+    ac_line_status: u8,
+    battery_flag: u8,
+    battery_life_percent: u8,
+    system_status_flag: u8,
+    battery_life_time: u32,
+    battery_full_life_time: u32,
+}
+
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn GetActiveProcessorCount(group_number: u16) -> u32;
@@ -71,6 +82,7 @@ unsafe extern "system" {
     ) -> i32;
     fn IsProcessorFeaturePresent(feature: u32) -> i32;
     fn GlobalMemoryStatusEx(status: *mut MemoryStatusEx) -> i32;
+    fn GetSystemPowerStatus(status: *mut SystemPowerStatus) -> i32;
 }
 
 #[link(name = "advapi32")]
@@ -170,6 +182,13 @@ impl PlatformProbe for NativeProbe {
         detect_runtimes()
     }
 
+    fn power(&self) -> Capability<PowerInfo> {
+        windows_power().map_or_else(
+            |error| Capability::error(error.to_string()),
+            |power| Capability::available(power, self.source(ProbeArea::Power)),
+        )
+    }
+
     fn source(&self, area: ProbeArea) -> DataSource {
         let (provider, detail) = match area {
             ProbeArea::System => ("windows-system", "RtlGetVersion and GetComputerNameW"),
@@ -180,6 +199,10 @@ impl PlatformProbe for NativeProbe {
             ProbeArea::Memory => ("windows-memory", "GlobalMemoryStatusEx"),
             ProbeArea::Storage => ("windows-storage", "Win32 volume APIs"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
+            ProbeArea::Gpu => ("windows-gpu", "not implemented"),
+            ProbeArea::Media => ("windows-media", "not implemented"),
+            ProbeArea::Power => ("windows-power", "GetSystemPowerStatus"),
+            ProbeArea::Thermal => ("windows-thermal", "not implemented"),
         };
 
         DataSource {
@@ -187,6 +210,39 @@ impl PlatformProbe for NativeProbe {
             detail: Some(detail.to_owned()),
         }
     }
+}
+
+fn windows_power() -> io::Result<PowerInfo> {
+    let mut status = SystemPowerStatus {
+        ac_line_status: 255,
+        battery_flag: 255,
+        battery_life_percent: 255,
+        system_status_flag: 0,
+        battery_life_time: u32::MAX,
+        battery_full_life_time: u32::MAX,
+    };
+    // SAFETY: `status` points to writable storage matching SYSTEM_POWER_STATUS.
+    if unsafe { GetSystemPowerStatus(&raw mut status) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(PowerInfo {
+        source: match status.ac_line_status {
+            0 => "battery",
+            1 => "ac",
+            _ => "unknown",
+        }
+        .to_owned(),
+        battery_percent: (status.battery_life_percent <= 100)
+            .then_some(status.battery_life_percent),
+        charging: if status.battery_flag & 8 != 0 {
+            Some(true)
+        } else if status.battery_flag == 255 {
+            None
+        } else {
+            Some(false)
+        },
+        low_power_mode: Some(status.system_status_flag != 0),
+    })
 }
 
 fn windows_version() -> io::Result<String> {

@@ -22,6 +22,8 @@ mollow-cli
   failures become explicit capability states instead of missing or fabricated
   values.
 - `mollow-bench` owns bounded, versioned workloads and robust sample summaries.
+- `mollow-compare` owns comparability rules, regression thresholds, and
+  field-level changes.
 - `mollow-report` renders the same snapshot into multiple representations.
 - `mollow-cli` parses commands and coordinates the other crates.
 
@@ -58,5 +60,7 @@ Parsing of CPU, memory, and mount records is isolated into fixture-tested pure
 functions.
 
 The Windows adapter uses thin Win32/NT FFI for version, hostname, CPU features,
-memory state, registry-backed CPU identity, and mounted volumes. It passes
-cross-target type checking; live Windows validation remains a release gate.
+memory state, registry-backed CPU identity, mounted volumes, and power state.
+GPU, media, and thermal detection remain explicit unsupported capabilities. It
+passes cross-target type checking; live Windows validation remains a release
+gate.

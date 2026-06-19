@@ -13,9 +13,12 @@ path = "src/main.rs"
 [dependencies]
 clap.workspace = true
 mollow-bench = { path = "../mollow-bench" }
+mollow-compare = { path = "../mollow-compare" }
 mollow-core = { path = "../mollow-core" }
 mollow-platform = { path = "../mollow-platform" }
 mollow-report = { path = "../mollow-report" }
+serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

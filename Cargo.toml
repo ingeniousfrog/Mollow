@@ -2,6 +2,7 @@
 members = [
     "crates/mollow-bench",
     "crates/mollow-cli",
+    "crates/mollow-compare",
     "crates/mollow-core",
     "crates/mollow-platform",
     "crates/mollow-report",
