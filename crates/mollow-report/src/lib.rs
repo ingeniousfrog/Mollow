@@ -1,4 +1,4 @@
-use mollow_core::MachineSnapshot;
+use mollow_core::{BenchmarkRun, MachineSnapshot};
 
 #[derive(Debug)]
 pub enum ReportError {
@@ -21,7 +21,20 @@ impl std::error::Error for ReportError {}
 ///
 /// Returns [`ReportError::Serialization`] if the snapshot cannot be encoded.
 pub fn render_json(snapshot: &MachineSnapshot) -> Result<String, ReportError> {
-    let mut report = serde_json::to_string_pretty(snapshot).map_err(ReportError::Serialization)?;
+    render_pretty_json(snapshot)
+}
+
+/// Renders a benchmark run as stable, pretty-printed JSON.
+///
+/// # Errors
+///
+/// Returns [`ReportError::Serialization`] if the benchmark cannot be encoded.
+pub fn render_benchmark_json(benchmark: &BenchmarkRun) -> Result<String, ReportError> {
+    render_pretty_json(benchmark)
+}
+
+fn render_pretty_json(value: &impl serde::Serialize) -> Result<String, ReportError> {
+    let mut report = serde_json::to_string_pretty(value).map_err(ReportError::Serialization)?;
     report.push('\n');
     Ok(report)
 }
@@ -138,6 +151,24 @@ mod tests {
         assert_eq!(
             legacy_schema["properties"]["schema_version"]["const"],
             "1.0.0"
+        );
+    }
+
+    #[test]
+    fn bundled_benchmark_schema_matches_the_benchmark_version() {
+        let schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../schemas/benchmark-run-v1.schema.json");
+        let schema = fs::read_to_string(schema_path).expect("benchmark schema should exist");
+        let schema: serde_json::Value =
+            serde_json::from_str(&schema).expect("benchmark schema should be valid JSON");
+
+        assert_eq!(
+            schema["properties"]["schema_version"]["const"],
+            mollow_core::BENCHMARK_SCHEMA_VERSION
+        );
+        assert_eq!(
+            schema["properties"]["cpu"]["$ref"],
+            "#/$defs/workloadCapability"
         );
     }
 }

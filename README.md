@@ -39,6 +39,7 @@ From the repository root:
 ```bash
 cargo build --workspace
 cargo run -p mollow -- inspect --format json
+cargo run --release -p mollow -- bench --profile quick --format json
 ```
 
 Run the quality checks:
@@ -52,6 +53,7 @@ cargo test --workspace
 ## Workspace
 
 - `crates/mollow-core`: versioned domain model and capability semantics
+- `crates/mollow-bench`: versioned CPU, memory, and storage workloads
 - `crates/mollow-platform`: collection contracts and native adapters
 - `crates/mollow-report`: JSON and future human-readable renderers
 - `crates/mollow-cli`: command-line interface and application coordination
@@ -59,4 +61,5 @@ cargo test --workspace
 - `docs`: architecture and decision records
 
 See [the architecture guide](docs/architecture.md) for design boundaries and
-schema evolution rules.
+schema evolution rules. See [the benchmark methodology](docs/benchmarks.md)
+before comparing or archiving performance results.

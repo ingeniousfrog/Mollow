@@ -133,8 +133,17 @@ name = "mollow"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "mollow-bench",
+ "mollow-core",
  "mollow-platform",
  "mollow-report",
+]
+
+[[package]]
+name = "mollow-bench"
+version = "0.1.0"
+dependencies = [
+ "mollow-core",
 ]
 
 [[package]]
@@ -157,6 +166,7 @@ name = "mollow-report"
 version = "0.1.0"
 dependencies = [
  "mollow-core",
+ "serde",
  "serde_json",
 ]
 

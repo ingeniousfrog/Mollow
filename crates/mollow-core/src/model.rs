@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: &str = "2.0.0";
+pub const BENCHMARK_SCHEMA_VERSION: &str = "1.0.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -108,6 +109,67 @@ pub struct StorageVolume {
 pub struct RuntimeInfo {
     pub name: String,
     pub version: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BenchmarkProfile {
+    Quick,
+    Standard,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkParameter {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkSample {
+    pub elapsed_ns: u64,
+    pub work_units: u64,
+    pub rate_per_second: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkSummary {
+    pub median_rate_per_second: u64,
+    pub median_absolute_deviation: u64,
+    pub minimum_rate_per_second: u64,
+    pub maximum_rate_per_second: u64,
+    pub variation_basis_points: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkloadResult {
+    pub workload_id: String,
+    pub workload_version: u32,
+    pub measurement: String,
+    pub warmup_iterations: u32,
+    pub parameters: Vec<BenchmarkParameter>,
+    pub samples: Vec<BenchmarkSample>,
+    pub summary: BenchmarkSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkContext {
+    pub build_profile: String,
+    pub machine_snapshot: MachineSnapshot,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkRun {
+    pub schema_version: String,
+    pub mollow_version: String,
+    pub started_at_unix_ms: u64,
+    pub profile: BenchmarkProfile,
+    pub context: BenchmarkContext,
+    pub cpu: Capability<WorkloadResult>,
+    pub memory: Capability<WorkloadResult>,
+    pub storage: Capability<WorkloadResult>,
+    pub gpu: Capability<PendingCapability>,
+    pub media: Capability<PendingCapability>,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

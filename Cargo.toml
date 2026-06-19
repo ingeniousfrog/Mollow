@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/mollow-bench",
     "crates/mollow-cli",
     "crates/mollow-core",
     "crates/mollow-platform",

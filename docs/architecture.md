@@ -21,6 +21,7 @@ mollow-cli
 - `mollow-platform` owns collection interfaces and native adapters. Collection
   failures become explicit capability states instead of missing or fabricated
   values.
+- `mollow-bench` owns bounded, versioned workloads and robust sample summaries.
 - `mollow-report` renders the same snapshot into multiple representations.
 - `mollow-cli` parses commands and coordinates the other crates.
 
