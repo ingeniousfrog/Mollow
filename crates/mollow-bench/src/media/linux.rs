@@ -18,7 +18,6 @@ const VA_STATUS_SUCCESS: i32 = 0;
 const VA_PROFILE_H264_MAIN: i32 = 5;
 const VA_ENTRYPOINT_VLD: i32 = 1;
 const VA_RT_FORMAT_YUV420: u32 = 0x0000_0001;
-const VA_FOURCC_NV12: u32 = 0x3231564e;
 const VA_SLICE_DATA_BUFFER_TYPE: u32 = 0x0000_0002;
 
 type VADisplay = *mut c_void;
@@ -88,7 +87,7 @@ pub(crate) fn run(
 }
 
 struct VaapiDecoder {
-    _library: *mut c_void,
+    library: *mut c_void,
     display: VADisplay,
     context: u32,
     surface: u32,
@@ -103,6 +102,7 @@ struct VaapiDecoder {
 }
 
 impl VaapiDecoder {
+    #[allow(clippy::too_many_lines)]
     fn open() -> Result<Self, BenchmarkError> {
         let render_node = find_render_node()?;
         let library = load_libva()?;
@@ -126,7 +126,6 @@ impl VaapiDecoder {
                 i32,
                 i32,
                 i32,
-                i32,
                 *const u32,
                 i32,
                 *mut u32,
@@ -142,8 +141,6 @@ impl VaapiDecoder {
             ) -> VAStatus = symbol(library, "vaCreateSurfaces")?;
             let va_destroy_config: unsafe extern "C" fn(VADisplay, u32) -> VAStatus =
                 symbol(library, "vaDestroyConfig")?;
-            let va_destroy_context: unsafe extern "C" fn(VADisplay, u32) -> VAStatus =
-                symbol(library, "vaDestroyContext")?;
             let va_destroy_surfaces: unsafe extern "C" fn(VADisplay, *const u32, i32) -> VAStatus =
                 symbol(library, "vaDestroySurfaces")?;
             let va_terminate: unsafe extern "C" fn(VADisplay) -> VAStatus =
@@ -197,13 +194,14 @@ impl VaapiDecoder {
                 config,
                 16,
                 16,
-                VA_RT_FORMAT_YUV420,
-                &surface,
+                i32::try_from(VA_RT_FORMAT_YUV420)
+                    .map_err(|error| BenchmarkError::new("media", error.to_string()))?,
+                &raw const surface,
                 1,
                 &raw mut context,
             ) != VA_STATUS_SUCCESS
             {
-                let _ = va_destroy_surfaces(display, &surface, 1);
+                let _ = va_destroy_surfaces(display, &raw const surface, 1);
                 let _ = va_destroy_config(display, config);
                 let _ = va_terminate(display);
                 return Err(BenchmarkError::new("media", "vaCreateContext failed"));
@@ -220,7 +218,7 @@ impl VaapiDecoder {
                 .collect::<Vec<_>>();
 
             Ok(Self {
-                _library: library,
+                library,
                 display,
                 context,
                 surface,
@@ -273,7 +271,8 @@ impl VaapiDecoder {
                     self.display,
                     self.context,
                     VA_SLICE_DATA_BUFFER_TYPE,
-                    std::mem::size_of::<VASliceParameterBuffer>() as u32,
+                    u32::try_from(std::mem::size_of::<VASliceParameterBuffer>())
+                        .map_err(|error| BenchmarkError::new("media", error.to_string()))?,
                     1,
                     &raw const slice_params as *mut c_void,
                     &raw mut slice_buffer,
@@ -326,22 +325,22 @@ impl Drop for VaapiDecoder {
         // SAFETY: Tear down VA-API resources loaded through libva.
         unsafe {
             let va_destroy_context: Option<unsafe extern "C" fn(VADisplay, u32) -> VAStatus> =
-                symbol(self._library, "vaDestroyContext").ok();
+                symbol(self.library, "vaDestroyContext").ok();
             let va_destroy_surfaces: Option<
                 unsafe extern "C" fn(VADisplay, *const u32, i32) -> VAStatus,
-            > = symbol(self._library, "vaDestroySurfaces").ok();
+            > = symbol(self.library, "vaDestroySurfaces").ok();
             let va_terminate: Option<unsafe extern "C" fn(VADisplay) -> VAStatus> =
-                symbol(self._library, "vaTerminate").ok();
+                symbol(self.library, "vaTerminate").ok();
             if let Some(va_destroy_context) = va_destroy_context {
                 let _ = va_destroy_context(self.display, self.context);
             }
             if let Some(va_destroy_surfaces) = va_destroy_surfaces {
-                let _ = va_destroy_surfaces(self.display, &self.surface, 1);
+                let _ = va_destroy_surfaces(self.display, &raw const self.surface, 1);
             }
             if let Some(va_terminate) = va_terminate {
                 let _ = va_terminate(self.display);
             }
-            libc::dlclose(self._library);
+            libc::dlclose(self.library);
         }
     }
 }
@@ -392,18 +391,18 @@ fn load_libva() -> Result<*mut c_void, BenchmarkError> {
 unsafe fn symbol<T>(library: *mut c_void, name: &str) -> Result<T, BenchmarkError> {
     let name = CString::new(name)
         .map_err(|error| BenchmarkError::new("media", format!("symbol name invalid: {error}")))?;
-    let symbol = libc::dlsym(library, name.as_ptr());
-    if symbol.is_null() {
-        return Err(BenchmarkError::new(
-            "media",
-            format!("missing libva symbol: {}", name.to_string_lossy()),
-        ));
+    // SAFETY: libva symbols are resolved from a successfully loaded library.
+    unsafe {
+        let symbol = libc::dlsym(library, name.as_ptr());
+        if symbol.is_null() {
+            return Err(BenchmarkError::new(
+                "media",
+                format!("missing libva symbol: {}", name.to_string_lossy()),
+            ));
+        }
+        Ok(std::mem::transmute_copy(&symbol))
     }
-    Ok(std::mem::transmute_copy(&symbol))
 }
 
 #[allow(dead_code)]
-const _: () = {
-    assert!(size_of::<VASliceParameterBuffer>() >= 24);
-    assert_eq!(VA_FOURCC_NV12, 0x3231_564e);
-};
+const _: () = assert!(size_of::<VASliceParameterBuffer>() >= 24);
