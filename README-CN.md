@@ -34,6 +34,18 @@ cargo run -p mollow -- archive list --dir ~/.mollow/archive
 cargo run -p mollow -- archive trend --dir ~/.mollow/archive --workload cpu
 ```
 
+## Homebrew 安装（macOS）
+
+Mollow 是 **CLI 命令行工具**，应使用 Homebrew **Formula** 分发（不像 CacheBar 那样用 Cask 装 `.app`）。
+可复用同一个 [ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap)：
+
+```bash
+brew tap ingeniousfrog/tap
+brew install mollow
+```
+
+前提是先在 GitHub Releases 发布对应架构的压缩包。维护流程见 [docs/homebrew.md](docs/homebrew.md)，模板见 `packaging/homebrew/mollow.rb`。
+
 ## 命令一览
 
 | 命令 | 用途 |
@@ -128,4 +140,4 @@ cargo test --workspace --release
 
 ## 许可证
 
-MIT — 见 `LICENSE`。
+Apache License 2.0 — 见 [`LICENSE`](LICENSE)。

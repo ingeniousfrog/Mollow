@@ -37,6 +37,18 @@ cargo run -p mollow -- archive list --dir ~/.mollow/archive
 cargo run -p mollow -- archive trend --dir ~/.mollow/archive --workload cpu
 ```
 
+## Install with Homebrew (macOS)
+
+Mollow is a **CLI binary**, so it belongs in a Homebrew **Formula** (not a Cask like GUI apps).
+The same [ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) used for CacheBar can host it:
+
+```bash
+brew tap ingeniousfrog/tap
+brew install mollow
+```
+
+This requires a published GitHub Release tarball per architecture. See [docs/homebrew.md](docs/homebrew.md) for the maintainer workflow and the `packaging/homebrew/mollow.rb` template.
+
 ## Commands
 
 | Command | Purpose |
@@ -133,4 +145,4 @@ Before publishing or archiving performance baselines, follow the
 
 ## License
 
-MIT — see `LICENSE`.
+Apache License 2.0 — see [`LICENSE`](LICENSE).

@@ -154,36 +154,32 @@ fn render_snapshot_terminal(snapshot: &MachineSnapshot, language: ReportLanguage
     );
     line(
         &mut output,
-        title(
-            language,
-            "\nWhat can this machine do?",
-            "\n这台机器具备什么能力？",
-        ),
-    );
-    append_snapshot_capabilities(&mut output, snapshot, language, "");
-    line(
-        &mut output,
-        title(
-            language,
-            "\nWhat state is it in now?",
-            "\n它当前处于什么状态？",
-        ),
-    );
-    append_snapshot_state(&mut output, snapshot, language, "");
-    line(
-        &mut output,
-        title(
-            language,
-            "\nWhat changed?",
-            "\n相对历史记录发生了什么变化？",
+        &format!(
+            "  {}: {} | {}: {}",
+            title(language, "Schema", "Schema"),
+            snapshot.schema_version,
+            title(language, "Mollow", "Mollow"),
+            snapshot.mollow_version
         ),
     );
     line(
         &mut output,
+        title(language, "\nHardware & runtime", "\n硬件与运行时"),
+    );
+    append_snapshot_capabilities(&mut output, snapshot, language, "  ");
+    line(
+        &mut output,
+        title(language, "\nCurrent environment", "\n当前环境"),
+    );
+    append_snapshot_state(&mut output, snapshot, language, "  ");
+    append_warnings(&mut output, &snapshot.warnings, language, "  ");
+    line(&mut output, title(language, "\nNote", "\n说明"));
+    line(
+        &mut output,
         title(
             language,
-            "  Capture another baseline and run `mollow compare`.",
-            "  再采集一份基线并运行 `mollow compare`。",
+            "  Inspect is a single-point snapshot. Run `mollow capture` and `mollow compare` for baseline diffs.",
+            "  inspect 为单点快照，不含历史对比；请运行 `mollow capture` 后再 `mollow compare`。",
         ),
     );
     output
@@ -191,29 +187,33 @@ fn render_snapshot_terminal(snapshot: &MachineSnapshot, language: ReportLanguage
 
 fn render_snapshot_markdown(snapshot: &MachineSnapshot, language: ReportLanguage) -> String {
     let mut output = format!(
-        "# {}\n\n## {}\n\n",
+        "# {}\n\n- {}: `{}`\n- {}: `{}`\n\n## {}\n\n",
         title(language, "Machine Snapshot", "机器快照"),
-        title(
-            language,
-            "What can this machine do?",
-            "这台机器具备什么能力？"
-        )
+        title(language, "Schema", "Schema"),
+        snapshot.schema_version,
+        title(language, "Mollow", "Mollow"),
+        snapshot.mollow_version,
+        title(language, "Hardware & runtime", "硬件与运行时"),
     );
     append_snapshot_capabilities(&mut output, snapshot, language, "- ");
     let _ = write!(
         output,
         "\n## {}\n\n",
-        title(language, "What state is it in now?", "它当前处于什么状态？")
+        title(language, "Current environment", "当前环境")
     );
     append_snapshot_state(&mut output, snapshot, language, "- ");
+    if !snapshot.warnings.is_empty() {
+        let _ = write!(output, "\n## {}\n\n", title(language, "Warnings", "警告"));
+        append_warnings(&mut output, &snapshot.warnings, language, "- ");
+    }
     let _ = writeln!(
         output,
         "\n## {}\n\n{}\n",
-        title(language, "What changed?", "相对历史记录发生了什么变化？"),
+        title(language, "Note", "说明"),
         title(
             language,
-            "Capture another baseline and run `mollow compare`.",
-            "再采集一份基线并运行 `mollow compare`。"
+            "Inspect is a single-point snapshot. Run `mollow capture` and `mollow compare` for baseline diffs.",
+            "inspect 为单点快照，不含历史对比；请运行 `mollow capture` 后再 `mollow compare`。",
         )
     );
     output
@@ -483,45 +483,74 @@ fn append_snapshot_capabilities(
     line(
         output,
         &format!(
-            "{prefix}{}: {} / {}",
+            "{prefix}{}: {} {} / {} ({})",
             title(language, "System", "系统"),
             system.map_or("-", |value| value.os_name.as_str()),
-            system.map_or("-", |value| value.architecture.as_str())
+            system
+                .and_then(|value| value.os_version.as_deref())
+                .unwrap_or("-"),
+            system.map_or("-", |value| value.architecture.as_str()),
+            system
+                .and_then(|value| value.kernel_version.as_deref())
+                .unwrap_or("-")
         ),
     );
     line(
         output,
         &format!(
-            "{prefix}{}: {} ({} {})",
+            "{prefix}{}: {} — {} / {} {} [{}]",
             title(language, "CPU", "处理器"),
             cpu.and_then(|value| value.model.as_deref()).unwrap_or("-"),
             cpu.map_or(0, |value| value.physical_cores.unwrap_or(0)),
-            title(language, "physical cores", "物理核心")
+            cpu.map_or(0, |value| value.logical_cores),
+            title(language, "physical / logical cores", "物理 / 逻辑核心"),
+            cpu.map_or("-".to_owned(), |value| {
+                if value.features.is_empty() {
+                    "-".to_owned()
+                } else {
+                    value.features.join(",")
+                }
+            })
         ),
     );
     line(
         output,
         &format!(
-            "{prefix}GPU: {} | {}: {} | {}: {}",
+            "{prefix}GPU: {}",
             snapshot.gpu.value.as_ref().map_or_else(
                 || status_name(&snapshot.gpu.status, language).to_owned(),
                 |gpus| gpus
                     .iter()
-                    .map(|gpu| gpu.name.clone())
+                    .map(|gpu| {
+                        if gpu.apis.is_empty() {
+                            gpu.name.clone()
+                        } else {
+                            format!("{} [{}]", gpu.name, gpu.apis.join(","))
+                        }
+                    })
                     .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+                    .join("; ")
+            )
+        ),
+    );
+    line(
+        output,
+        &format!(
+            "{prefix}{}: {}",
             title(language, "Media", "媒体"),
             snapshot.media.value.as_ref().map_or_else(
                 || status_name(&snapshot.media.status, language).to_owned(),
-                |media| format!(
-                    "{} [{}]",
-                    media.backend,
-                    media.hardware_decode_codecs.join(",")
-                )
-            ),
+                |media| format_media_info(media, language)
+            )
+        ),
+    );
+    append_storage_lines(output, snapshot, language, prefix);
+    line(
+        output,
+        &format!(
+            "{prefix}{}: {}",
             title(language, "Runtimes", "运行时"),
-            status_name(&snapshot.runtimes.status, language)
+            format_runtimes(snapshot, language)
         ),
     );
 }
@@ -542,26 +571,43 @@ fn append_snapshot_state(
                 bytes(memory.total_bytes)
             ),
         );
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "Swap", "交换区"),
+                format_swap(&memory.swap, language)
+            ),
+        );
+    } else {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "Memory", "内存"),
+                status_name(&snapshot.memory.status, language)
+            ),
+        );
     }
     line(
         output,
         &format!(
-            "{prefix}{}: {} | {}: {}",
+            "{prefix}{}: {}",
             title(language, "Power", "电源"),
             snapshot.power.value.as_ref().map_or_else(
                 || status_name(&snapshot.power.status, language).to_owned(),
-                |power| format!(
-                    "{} {}",
-                    power.source,
-                    power
-                        .battery_percent
-                        .map_or("-".to_owned(), |value| format!("{value}%"))
-                )
-            ),
+                |power| format_power_info(power, language)
+            )
+        ),
+    );
+    line(
+        output,
+        &format!(
+            "{prefix}{}: {}",
             title(language, "Thermal", "温控"),
             snapshot.thermal.value.as_ref().map_or_else(
                 || status_name(&snapshot.thermal.status, language).to_owned(),
-                |thermal| thermal.state.clone()
+                format_thermal_info,
             )
         ),
     );
@@ -575,6 +621,148 @@ fn append_snapshot_state(
             ),
         );
     }
+}
+
+fn append_storage_lines(
+    output: &mut String,
+    snapshot: &MachineSnapshot,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    let Some(volumes) = snapshot.storage.value.as_ref() else {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "Storage", "存储"),
+                status_name(&snapshot.storage.status, language)
+            ),
+        );
+        return;
+    };
+    if volumes.is_empty() {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "Storage", "存储"),
+                title(language, "no volumes", "无卷")
+            ),
+        );
+        return;
+    }
+    let mut ordered = volumes.clone();
+    ordered.sort_by(|left, right| {
+        let left_root = left.mount_point == "/";
+        let right_root = right.mount_point == "/";
+        right_root
+            .cmp(&left_root)
+            .then_with(|| left.mount_point.cmp(&right.mount_point))
+    });
+    for volume in ordered.into_iter().take(3) {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {} {} {} / {} ({})",
+                title(language, "Storage", "存储"),
+                volume.mount_point,
+                volume.name.as_deref().unwrap_or("-"),
+                bytes(volume.available_bytes),
+                bytes(volume.total_bytes),
+                volume.file_system.as_deref().unwrap_or("-")
+            ),
+        );
+    }
+}
+
+fn format_media_info(media: &mollow_core::MediaInfo, language: ReportLanguage) -> String {
+    let decode = if media.hardware_decode_codecs.is_empty() {
+        "-".to_owned()
+    } else {
+        media.hardware_decode_codecs.join(",")
+    };
+    let encode = if media.hardware_encode_codecs.is_empty() {
+        "-".to_owned()
+    } else {
+        media.hardware_encode_codecs.join(",")
+    };
+    format!(
+        "{} | {}: [{}] | {}: [{}]",
+        media.backend,
+        title(language, "decode", "硬解"),
+        decode,
+        title(language, "encode", "硬编"),
+        encode
+    )
+}
+
+fn format_runtimes(snapshot: &MachineSnapshot, language: ReportLanguage) -> String {
+    snapshot.runtimes.value.as_ref().map_or_else(
+        || status_name(&snapshot.runtimes.status, language).to_owned(),
+        |runtimes| {
+            if runtimes.is_empty() {
+                title(language, "none detected", "未检测到").to_owned()
+            } else {
+                runtimes
+                    .iter()
+                    .map(|runtime| format!("{} {}", runtime.name, runtime.version))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            }
+        },
+    )
+}
+
+fn format_swap(
+    swap: &mollow_core::Capability<mollow_core::SwapInfo>,
+    language: ReportLanguage,
+) -> String {
+    swap.value.as_ref().map_or_else(
+        || status_name(&swap.status, language).to_owned(),
+        |swap| format!("{} / {}", bytes(swap.used_bytes), bytes(swap.total_bytes)),
+    )
+}
+
+fn format_power_info(power: &mollow_core::PowerInfo, language: ReportLanguage) -> String {
+    let mut parts = vec![power.source.clone()];
+    if let Some(percent) = power.battery_percent {
+        parts.push(format!("{percent}%"));
+    }
+    if let Some(charging) = power.charging {
+        parts.push(
+            title(
+                language,
+                if charging { "charging" } else { "not charging" },
+                if charging { "充电中" } else { "未充电" },
+            )
+            .to_owned(),
+        );
+    }
+    if let Some(low_power_mode) = power.low_power_mode {
+        parts.push(format!(
+            "{}: {}",
+            title(language, "low power", "低电量模式"),
+            title(
+                language,
+                if low_power_mode { "on" } else { "off" },
+                if low_power_mode { "开启" } else { "关闭" },
+            )
+        ));
+    }
+    parts.join(" | ")
+}
+
+fn format_thermal_info(thermal: &mollow_core::ThermalInfo) -> String {
+    let mut parts = vec![thermal.state.clone()];
+    if let Some(temperature) = thermal.temperature_milli_celsius {
+        let whole = temperature / 1000;
+        let fraction = (temperature % 1000).unsigned_abs();
+        parts.push(format!("{whole}.{fraction:03} C"));
+    }
+    if let Some(sensor) = thermal.sensor.as_deref() {
+        parts.push(sensor.to_owned());
+    }
+    parts.join(" | ")
 }
 
 fn append_workload_terminal(
@@ -878,7 +1066,7 @@ mod tests {
     }
 
     #[test]
-    fn chinese_snapshot_terminal_answers_the_capability_question() {
+    fn chinese_snapshot_terminal_uses_section_labels() {
         let snapshot = fixture_snapshot("<fixture>");
 
         let report = render_snapshot(&snapshot, ReportFormat::Terminal, ReportLanguage::Chinese)
@@ -886,7 +1074,9 @@ mod tests {
         let html = render_snapshot(&snapshot, ReportFormat::Html, ReportLanguage::Chinese)
             .expect("snapshot HTML should render");
 
-        assert!(report.contains("这台机器具备什么能力"));
+        assert!(report.contains("硬件与运行时"));
+        assert!(report.contains("当前环境"));
+        assert!(!report.contains("这台机器具备什么能力"));
         assert!(report.contains("<fixture>"));
         assert!(html.contains("<html lang=\"zh-CN\">"));
         assert!(html.contains("<h1>"));
