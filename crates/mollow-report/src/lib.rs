@@ -1,5 +1,6 @@
 use std::fmt::Write as _;
 
+use chrono::{Local, TimeZone};
 use mollow_core::{BenchmarkRun, ComparisonReport, MachineSnapshot, WatchField, WatchReading};
 
 mod localization;
@@ -157,7 +158,7 @@ pub fn render_watch_frame(
         &format!(
             "  {}: {}",
             title(language, "Updated", "更新时间"),
-            reading.captured_at_unix_ms
+            format_watch_timestamp(reading.captured_at_unix_ms)
         ),
     );
     for field in fields {
@@ -172,6 +173,23 @@ pub fn render_watch_frame(
         title(language, "\nPress Ctrl+C to stop.", "\n按 Ctrl+C 停止。"),
     );
     output
+}
+
+fn format_watch_timestamp(unix_ms: u64) -> String {
+    let Ok(secs) = i64::try_from(unix_ms / 1000) else {
+        return unix_ms.to_string();
+    };
+    let millis = unix_ms % 1000;
+    let Ok(nanos) = u32::try_from(millis * 1_000_000) else {
+        return unix_ms.to_string();
+    };
+
+    Local
+        .timestamp_opt(secs, nanos)
+        .single()
+        .map_or_else(|| unix_ms.to_string(), |datetime| {
+            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+        })
 }
 
 fn append_watch_memory_line(output: &mut String, reading: &WatchReading, language: ReportLanguage) {
@@ -266,7 +284,7 @@ fn render_snapshot_terminal(snapshot: &MachineSnapshot, language: ReportLanguage
     );
     line(
         &mut output,
-        title(language, "\nHardware & runtime", "\n硬件与运行时"),
+        title(language, "\nHardware & runtime", "\n硬件与开发环境"),
     );
     append_snapshot_capabilities(&mut output, snapshot, language, "  ");
     line(
@@ -295,7 +313,7 @@ fn render_snapshot_markdown(snapshot: &MachineSnapshot, language: ReportLanguage
         snapshot.schema_version,
         title(language, "Mollow", "Mollow"),
         snapshot.mollow_version,
-        title(language, "Hardware & runtime", "硬件与运行时"),
+        title(language, "Hardware & runtime", "硬件与开发环境"),
     );
     append_snapshot_capabilities(&mut output, snapshot, language, "- ");
     let _ = write!(
@@ -651,7 +669,7 @@ fn append_snapshot_capabilities(
         output,
         &format!(
             "{prefix}{}: {}",
-            title(language, "Runtimes", "运行时"),
+            title(language, "Runtimes", "开发工具"),
             format_runtimes(snapshot, language)
         ),
     );
@@ -736,7 +754,7 @@ fn append_storage_lines(
             output,
             &format!(
                 "{prefix}{}: {}",
-                title(language, "Storage", "存储"),
+                title(language, "Storage", "存储卷"),
                 status_name(&snapshot.storage.status, language)
             ),
         );
@@ -747,7 +765,7 @@ fn append_storage_lines(
             output,
             &format!(
                 "{prefix}{}: {}",
-                title(language, "Storage", "存储"),
+                title(language, "Storage", "存储卷"),
                 title(language, "no volumes", "无卷")
             ),
         );
@@ -766,7 +784,7 @@ fn append_storage_lines(
             output,
             &format!(
                 "{prefix}{}: {} {} {} / {} ({})",
-                title(language, "Storage", "存储"),
+                title(language, "Storage", "存储卷"),
                 volume.mount_point,
                 volume.name.as_deref().unwrap_or("-"),
                 bytes(volume.available_bytes),
@@ -1176,7 +1194,7 @@ mod tests {
         let html = render_snapshot(&snapshot, ReportFormat::Html, ReportLanguage::Chinese)
             .expect("snapshot HTML should render");
 
-        assert!(report.contains("硬件与运行时"));
+        assert!(report.contains("硬件与开发环境"));
         assert!(report.contains("当前环境"));
         assert!(!report.contains("这台机器具备什么能力"));
         assert!(report.contains("<fixture>"));
@@ -1195,6 +1213,15 @@ mod tests {
         assert!(report.contains("# Performance Baseline"));
         assert!(report.contains("Variation"));
         assert!(report.contains("fixture warning"));
+    }
+
+    #[test]
+    fn watch_timestamp_uses_local_standard_time() {
+        // 2024-01-02 03:04:05 UTC
+        let formatted = format_watch_timestamp(1_704_165_845_000);
+        assert!(formatted.contains('-'));
+        assert!(formatted.contains(':'));
+        assert!(!formatted.starts_with("1704165845"));
     }
 
     #[test]

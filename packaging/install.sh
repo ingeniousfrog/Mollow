@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${MOLLOW_VERSION:-0.1.0}"
+VERSION="${MOLLOW_VERSION:-0.1.1}"
 REPO="${MOLLOW_REPO:-ingeniousfrog/Mollow}"
 INSTALL_DIR="${MOLLOW_INSTALL_DIR:-${HOME}/.local/bin}"
 

@@ -103,7 +103,7 @@ sequenceDiagram
 
 ## Installation
 
-Current release: **[v0.1.0](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.0)**.
+Current release: **[v0.1.1](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.1)**.
 Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64, and Windows x86_64.
 
 ### Quick pick by platform
@@ -239,7 +239,7 @@ Pin a specific version:
 
 ```powershell
 irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.0
+.\install.ps1 -Version 0.1.1
 ```
 
 Restart the terminal after installation, then:

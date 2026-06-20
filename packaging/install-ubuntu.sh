@@ -2,7 +2,7 @@
 # Ubuntu / Debian x86_64 installer for Mollow (GitHub Releases binary).
 set -euo pipefail
 
-VERSION="${MOLLOW_VERSION:-0.1.0}"
+VERSION="${MOLLOW_VERSION:-0.1.1}"
 REPO="${MOLLOW_REPO:-ingeniousfrog/Mollow}"
 INSTALL_DIR="${MOLLOW_INSTALL_DIR:-/usr/local/bin}"
 TARGET="x86_64-unknown-linux-gnu"
