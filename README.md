@@ -104,16 +104,18 @@ sequenceDiagram
 ## Installation
 
 Current release: **[v0.1.2](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.2)**.
-Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64, and Windows x86_64.
+Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64 (**musl static + glibc builds**), and Windows x86_64.
+
+**v0.1.2 highlights:** fixes `GLIBC_2.39 not found` on older Linux (Ubuntu 20.04, cloud VPS). Install scripts default to the musl static binary.
 
 ### Quick pick by platform
 
 | Platform | Recommended | One-liner |
 | --- | --- | --- |
 | **macOS** | Homebrew | `brew tap ingeniousfrog/tap && brew install mollow` |
-| **Linux** (generic) | Install script | See [Linux → Option A](#linux) below |
-| **Ubuntu / Debian** | Ubuntu script | See [Linux → Option B](#linux) below |
-| **Windows** | PowerShell script | See [Windows → Option A](#windows) below |
+| **Ubuntu / Debian / cloud VPS** | Ubuntu script (musl) | `curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh \| sudo bash` |
+| **Linux** (other distros) | Install script (musl) | `curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh \| bash` |
+| **Windows** | PowerShell script | `irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 \| iex` |
 | **Any** (developers) | Build from source | `cargo build --release -p mollow` |
 
 > **Not available:** `apt install mollow` — Mollow is not in Debian/Ubuntu official repositories.
@@ -159,6 +161,22 @@ mollow --version
 | **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.2` |
 | **Manual download** | Download the new asset from [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) and replace the binary on your `PATH` |
 | **Build from source** | `git pull && cargo build --release -p mollow` |
+
+### Troubleshooting
+
+#### Linux: `GLIBC_2.39 not found` (or similar `GLIBC_* not found`)
+
+You likely installed the **glibc-linked** binary on a system with an older glibc (common on Ubuntu 20.04 and cloud VPS images).
+
+1. Remove the old binary: `sudo rm -f /usr/local/bin/mollow ~/.local/bin/mollow`
+2. Reinstall with the **v0.1.2+** script (defaults to the **musl** static build):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+mollow --version
+```
+
+If that still fails, [build from source](#build-from-source).
 
 ---
 

@@ -100,16 +100,18 @@ sequenceDiagram
 ## 安装
 
 当前版本：**[v0.1.2](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.2)**。
-已提供 macOS（Apple Silicon / Intel）、Linux x86_64、Windows x86_64 预编译二进制。
+已提供 macOS（Apple Silicon / Intel）、Linux x86_64（**musl 静态包 + glibc 包**）、Windows x86_64 预编译二进制。
+
+**v0.1.2 要点：** 修复 Linux 上 `GLIBC_2.39 not found`（Ubuntu 20.04、阿里云 ECS 等）；安装脚本默认使用 musl 静态二进制。
 
 ### 按平台快速选择
 
 | 平台 | 推荐方式 | 命令 |
 | --- | --- | --- |
 | **macOS** | Homebrew | `brew tap ingeniousfrog/tap && brew install mollow` |
-| **Linux**（通用） | 安装脚本 | 见下方 [Linux → 方式 A](#linux) |
-| **Ubuntu / Debian** | 专用脚本 | 见下方 [Linux → 方式 B](#linux) |
-| **Windows** | PowerShell 脚本 | 见下方 [Windows → 方式 A](#windows) |
+| **Ubuntu / Debian / 云服务器** | 专用脚本（musl） | `curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh \| sudo bash` |
+| **Linux**（其它发行版） | 安装脚本（musl） | `curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh \| bash` |
+| **Windows** | PowerShell 脚本 | `irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 \| iex` |
 | **任意平台**（开发者） | 源码构建 | `cargo build --release -p mollow` |
 
 > **暂不支持：** `apt install mollow` — Mollow 未进入 Debian/Ubuntu 官方软件源。
@@ -154,6 +156,22 @@ mollow --version
 | **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.2` |
 | **手动下载** | 从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载新包，替换 `PATH` 中的二进制 |
 | **源码构建** | `git pull && cargo build --release -p mollow` |
+
+### 常见问题
+
+#### Linux 报 `GLIBC_2.39 not found`（或类似 `GLIBC_* not found`）
+
+说明安装的是 **glibc 版** 预编译包，而系统 glibc 过旧（常见于 Ubuntu 20.04、阿里云/腾讯云 ECS）。
+
+1. 删除旧二进制：`sudo rm -f /usr/local/bin/mollow ~/.local/bin/mollow`
+2. 用 **v0.1.2+** 的安装脚本重装（默认 **musl** 静态包，不依赖系统 glibc）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+mollow --version
+```
+
+仍失败时可[从源码构建](#源码构建)。
 
 ---
 
