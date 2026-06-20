@@ -1,12 +1,12 @@
 {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "Cross-platform machine inspection and performance-baseline CLI",
     "homepage": "https://github.com/ingeniousfrog/Mollow",
     "license": "Apache-2.0",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.1/mollow-x86_64-pc-windows-msvc.zip",
-            "hash": "e8eb2e77cb6d3351339c6793bdbfb813992b9047fda51964a6dd30c1e8b4f111"
+            "url": "https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.2/mollow-x86_64-pc-windows-msvc.zip",
+            "hash": "PLACEHOLDER_RUN_update-package-checksums"
         }
     },
     "bin": "mollow.exe",
