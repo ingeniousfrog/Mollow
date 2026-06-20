@@ -2,10 +2,10 @@
 # Ubuntu / Debian x86_64 installer for Mollow (GitHub Releases binary).
 set -euo pipefail
 
-VERSION="${MOLLOW_VERSION:-0.1.1}"
+VERSION="${MOLLOW_VERSION:-0.1.2}"
 REPO="${MOLLOW_REPO:-ingeniousfrog/Mollow}"
 INSTALL_DIR="${MOLLOW_INSTALL_DIR:-/usr/local/bin}"
-TARGET="x86_64-unknown-linux-gnu"
+TARGET="${MOLLOW_LINUX_TARGET:-x86_64-unknown-linux-musl}"
 ASSET="mollow-${TARGET}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}"
 
@@ -13,10 +13,14 @@ usage() {
   cat <<EOF
 Install Mollow on Ubuntu/Debian (x86_64) from GitHub Releases.
 
+Uses the musl static binary by default for compatibility with older glibc
+(Ubuntu 20.04, Alibaba Cloud ECS, etc.). Override with MOLLOW_LINUX_TARGET if needed.
+
 Environment variables:
-  MOLLOW_VERSION      Release version without leading v (default: ${VERSION})
-  MOLLOW_REPO         GitHub repository (default: ${REPO})
-  MOLLOW_INSTALL_DIR  Install directory (default: ${INSTALL_DIR})
+  MOLLOW_VERSION       Release version without leading v (default: ${VERSION})
+  MOLLOW_REPO          GitHub repository (default: ${REPO})
+  MOLLOW_INSTALL_DIR   Install directory (default: ${INSTALL_DIR})
+  MOLLOW_LINUX_TARGET    Linux target triple (default: ${TARGET})
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/${REPO}/main/packaging/install-ubuntu.sh | sudo bash
@@ -67,4 +71,10 @@ echo "Installed mollow to ${INSTALL_DIR}/mollow"
 if ! command -v mollow >/dev/null 2>&1; then
   echo "Ensure ${INSTALL_DIR} is on your PATH."
 fi
-"${INSTALL_DIR}/mollow" --version
+
+if ! "${INSTALL_DIR}/mollow" --version; then
+  echo "mollow failed to start." >&2
+  echo "If you see GLIBC_* errors, ensure you are on mollow >= 0.1.2 with the musl binary," >&2
+  echo "or build from source: cargo build --release -p mollow" >&2
+  exit 1
+fi

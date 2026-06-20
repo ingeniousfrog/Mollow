@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${MOLLOW_VERSION:-0.1.1}"
+VERSION="${MOLLOW_VERSION:-0.1.2}"
 REPO="${MOLLOW_REPO:-ingeniousfrog/Mollow}"
 INSTALL_DIR="${MOLLOW_INSTALL_DIR:-${HOME}/.local/bin}"
 
@@ -12,7 +12,7 @@ Install Mollow from GitHub Releases.
 Environment variables:
   MOLLOW_VERSION      Release tag version without leading v (default: ${VERSION})
   MOLLOW_REPO         GitHub repository (default: ${REPO})
-  MOLLOW_INSTALL_DIR  Install directory (default: ${INSTALL_DIR})
+  MOLLOW_LINUX_TARGET Linux target triple (default on x86_64: x86_64-unknown-linux-musl)
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/${REPO}/main/packaging/install.sh | bash
@@ -33,7 +33,7 @@ detect_target() {
   case "${os}/${arch}" in
     Darwin/arm64) echo "aarch64-apple-darwin" ;;
     Darwin/x86_64) echo "x86_64-apple-darwin" ;;
-    Linux/x86_64) echo "x86_64-unknown-linux-gnu" ;;
+    Linux/x86_64) echo "${MOLLOW_LINUX_TARGET:-x86_64-unknown-linux-musl}" ;;
     *)
       echo "unsupported platform: ${os}/${arch}" >&2
       echo "Build from source: cargo build --release -p mollow" >&2

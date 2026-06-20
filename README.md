@@ -103,7 +103,7 @@ sequenceDiagram
 
 ## Installation
 
-Current release: **[v0.1.1](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.1)**.
+Current release: **[v0.1.2](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.2)**.
 Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64, and Windows x86_64.
 
 ### Quick pick by platform
@@ -155,8 +155,8 @@ mollow --version
 | Install method | Upgrade steps |
 | --- | --- |
 | **Homebrew** (macOS / Linux) | `brew update && brew upgrade mollow` |
-| **Install scripts** | Re-run the script (defaults to the version baked into the script on `main`), or pin: `MOLLOW_VERSION=0.1.1 curl -fsSL …/install.sh \| bash` |
-| **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.1` |
+| **Install scripts** | Re-run the script (defaults to the version baked into the script on `main`), or pin: `MOLLOW_VERSION=0.1.2 curl -fsSL …/install.sh \| bash` |
+| **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.2` |
 | **Manual download** | Download the new asset from [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) and replace the binary on your `PATH` |
 | **Build from source** | `git pull && cargo build --release -p mollow` |
 
@@ -215,6 +215,11 @@ Download `mollow-aarch64-apple-darwin.tar.gz` or `mollow-x86_64-apple-darwin.tar
 
 Mollow is **not** packaged for `apt`, `dnf`, or official distro repos. Use one of the options below.
 
+> **glibc compatibility:** Install scripts download the **musl** Linux binary by default, which
+> runs on older systems (Ubuntu 20.04, Alibaba Cloud ECS, etc.). The separate
+> `mollow-x86_64-unknown-linux-gnu` asset requires **glibc 2.35+** (Ubuntu 22.04+). If you still
+> see `GLIBC_* not found`, upgrade to **v0.1.2+** or build from source.
+
 #### Option A — Install script (recommended)
 
 Generic script for Linux x86_64 (and macOS). Default install path: `~/.local/bin`.
@@ -255,7 +260,8 @@ brew install mollow
 
 #### Option D — Manual download
 
-Download `mollow-x86_64-unknown-linux-gnu.tar.gz` from
+Download `mollow-x86_64-unknown-linux-gnu.tar.gz` (glibc 2.35+) or
+`mollow-x86_64-unknown-linux-musl.tar.gz` (static, older distros) from
 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow`, and place it on your `PATH`.
 
 ---
@@ -274,7 +280,7 @@ Pin a specific version:
 
 ```powershell
 irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.1
+.\install.ps1 -Version 0.1.2
 ```
 
 Restart the terminal after installation, then:
@@ -327,7 +333,8 @@ Add the binary to your `PATH`, or invoke via `cargo run --release -p mollow --`.
 | --- | --- |
 | `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon |
 | `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel |
-| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 (glibc 2.35+) |
+| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 (static musl, older distros) |
 | `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
 Publishing a new version: push a `v*` tag (see [`.github/workflows/release.yml`](.github/workflows/release.yml)), then update checksums and the Homebrew tap:

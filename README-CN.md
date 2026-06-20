@@ -99,7 +99,7 @@ sequenceDiagram
 
 ## 安装
 
-当前版本：**[v0.1.1](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.1)**。
+当前版本：**[v0.1.2](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.2)**。
 已提供 macOS（Apple Silicon / Intel）、Linux x86_64、Windows x86_64 预编译二进制。
 
 ### 按平台快速选择
@@ -150,8 +150,8 @@ mollow --version
 | 安装方式 | 升级方法 |
 | --- | --- |
 | **Homebrew**（macOS / Linux） | `brew update && brew upgrade mollow` |
-| **安装脚本** | 重新运行脚本（默认安装 `main` 分支脚本里写明的版本），或指定：`MOLLOW_VERSION=0.1.1 curl -fsSL …/install.sh \| bash` |
-| **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.1` |
+| **安装脚本** | 重新运行脚本（默认安装 `main` 分支脚本里写明的版本），或指定：`MOLLOW_VERSION=0.1.2 curl -fsSL …/install.sh \| bash` |
+| **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.2` |
 | **手动下载** | 从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载新包，替换 `PATH` 中的二进制 |
 | **源码构建** | `git pull && cargo build --release -p mollow` |
 
@@ -211,6 +211,10 @@ MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/i
 
 Mollow **不支持** `apt`、`dnf` 等官方包管理器直接安装。请使用以下方式之一。
 
+> **glibc 兼容性：** 安装脚本默认下载 **musl** 静态二进制，可在较旧系统上运行（Ubuntu 20.04、
+> 阿里云 ECS 等）。单独的 `mollow-x86_64-unknown-linux-gnu` 产物需要 **glibc 2.35+**（Ubuntu 22.04+）。
+> 若仍出现 `GLIBC_* not found`，请升级到 **v0.1.2+** 或从源码构建。
+
 #### 方式 A — 通用安装脚本（推荐）
 
 适用于 Linux x86_64（也支持 macOS）。默认安装路径：`~/.local/bin`。
@@ -252,7 +256,8 @@ brew install mollow
 #### 方式 D — 手动下载
 
 从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载
-`mollow-x86_64-unknown-linux-gnu.tar.gz`，解压 `mollow` 并加入 `PATH`。
+`mollow-x86_64-unknown-linux-gnu.tar.gz`（glibc 2.35+）或
+`mollow-x86_64-unknown-linux-musl.tar.gz`（musl 静态链接，适配更旧发行版），解压 `mollow` 并加入 `PATH`。
 
 ---
 
@@ -270,7 +275,7 @@ irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/instal
 
 ```powershell
 irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.1
+.\install.ps1 -Version 0.1.2
 ```
 
 安装后**重启终端**，然后：
@@ -322,7 +327,8 @@ cargo build --release -p mollow
 | --- | --- |
 | `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon |
 | `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel |
-| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64（glibc 2.35+） |
+| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64（musl 静态，旧发行版） |
 | `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
 发布新版本：推送 `v*` tag（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)），然后更新 checksum 并推送 Homebrew tap：

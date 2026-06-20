@@ -38,8 +38,11 @@ MOLLOW_INSTALL_DIR="$HOME/.local/bin" bash install-ubuntu.sh
 ### Generic Linux / macOS install script
 
 ```bash
-MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL ... | bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
 ```
+
+Linux x86_64 installs the **musl** static binary by default. Override with
+`MOLLOW_LINUX_TARGET=x86_64-unknown-linux-gnu` if you need the glibc build (2.35+).
 
 ### Homebrew on Linux
 
