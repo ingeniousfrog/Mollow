@@ -87,12 +87,20 @@ its folder to `PATH`.
 ## Release assets
 
 Tag `v*` pushes trigger [`.github/workflows/release.yml`](../.github/workflows/release.yml),
-which publishes prebuilt binaries for macOS, Linux, and Windows.
+which publishes prebuilt binaries for macOS, Linux, and Windows and updates
+[homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) when `HOMEBREW_TAP_TOKEN`
+is configured (see [homebrew.md](homebrew.md)).
 
-After each release, maintainers should run:
+After each release, maintainers should update Scoop/winget checksum placeholders in
+`packaging/scoop/` and `packaging/winget/`:
+
+```bash
+./packaging/update-package-checksums.sh <version>
+```
+
+Homebrew tap manual fallback:
 
 ```bash
 ./packaging/update-homebrew-sha256.sh <version>
+./packaging/push-homebrew-tap.sh
 ```
-
-and update Scoop/winget checksum placeholders in `packaging/scoop/` and `packaging/winget/`.

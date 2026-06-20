@@ -30,7 +30,9 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The workflow builds and uploads:
+The workflow builds release assets, publishes the GitHub Release, and **updates
+[homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) automatically** when
+`HOMEBREW_TAP_TOKEN` is configured (see below).
 
 | Asset | Platform |
 | --- | --- |
@@ -39,19 +41,27 @@ The workflow builds and uploads:
 | `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 |
 | `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
-### Update the tap formula
+### One-time CI setup (homebrew-tap auto-push)
 
-1. After the GitHub Release finishes, refresh checksum placeholders:
+Add a repository secret on **Mollow**:
+
+| Secret | Value |
+| --- | --- |
+| `HOMEBREW_TAP_TOKEN` | Fine-grained or classic PAT with **Contents: Read and write** on `ingeniousfrog/homebrew-tap` |
+
+Without this secret, the release still succeeds; the tap update step is skipped with a warning.
+
+### Manual tap update (fallback)
+
+If CI push is unavailable:
+
+1. After the GitHub Release finishes:
 
    ```bash
    ./packaging/update-homebrew-sha256.sh 0.1.0
    ```
 
-2. Copy [`packaging/homebrew/mollow.rb`](../packaging/homebrew/mollow.rb) into the tap as
-   `Formula/mollow.rb` (update `version` if needed).
-
-3. Push to [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap). Users can then
-   `brew install mollow`.
+2. Push to [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap):
 
    ```bash
    ./packaging/push-homebrew-tap.sh

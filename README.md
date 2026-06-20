@@ -448,11 +448,16 @@ Add the binary to your `PATH`, or invoke via `cargo run --release -p mollow --`.
 | `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 (static musl, older distros) |
 | `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
-Publishing a new version: push a `v*` tag (see [`.github/workflows/release.yml`](.github/workflows/release.yml)), then update checksums and the Homebrew tap:
+Publishing a new version: push a `v*` tag (see [`.github/workflows/release.yml`](.github/workflows/release.yml)). After the release finishes, [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) is updated automatically when `HOMEBREW_TAP_TOKEN` is configured (see [docs/homebrew.md](docs/homebrew.md)). Scoop / winget checksums still need a manual refresh:
+
+```bash
+./packaging/update-package-checksums.sh <version>
+```
+
+Manual Homebrew tap fallback:
 
 ```bash
 ./packaging/update-homebrew-sha256.sh <version>
-./packaging/update-package-checksums.sh <version>
 ./packaging/push-homebrew-tap.sh
 ```
 

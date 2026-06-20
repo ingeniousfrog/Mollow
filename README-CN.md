@@ -443,11 +443,16 @@ cargo build --release -p mollow
 | `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64（musl 静态，旧发行版） |
 | `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
-发布新版本：推送 `v*` tag（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)），然后更新 checksum 并推送 Homebrew tap：
+发布新版本：推送 `v*` tag（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)）。Release 完成后会自动更新 [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap)（需配置 `HOMEBREW_TAP_TOKEN`，见 [docs/homebrew.md](docs/homebrew.md)）。Scoop / winget checksum 仍需手动刷新：
+
+```bash
+./packaging/update-package-checksums.sh <version>
+```
+
+Homebrew tap 手动兜底：
 
 ```bash
 ./packaging/update-homebrew-sha256.sh <version>
-./packaging/update-package-checksums.sh <version>
 ./packaging/push-homebrew-tap.sh
 ```
 
