@@ -1,3 +1,5 @@
+# Requires silentforge >= 0.1.1 on npm (0.1.0 bin entry was broken).
+
 name: Deploy SilentForge presentation site
 
 on:
@@ -18,15 +20,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - uses: actions/configure-pages@v5
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
       - name: Generate presentation site
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx silentforge@latest init ingeniousfrog/Mollow -o site --locale en
+        run: npx --yes silentforge@latest init ${{ github.repository }} -o site --locale en
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
