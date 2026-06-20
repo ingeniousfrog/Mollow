@@ -2,10 +2,23 @@
 # Ubuntu / Debian x86_64 installer for Mollow (GitHub Releases binary).
 set -euo pipefail
 
-VERSION="${MOLLOW_VERSION:-0.1.2}"
+VERSION="${MOLLOW_VERSION:-}"
 REPO="${MOLLOW_REPO:-ingeniousfrog/Mollow}"
 INSTALL_DIR="${MOLLOW_INSTALL_DIR:-/usr/local/bin}"
 TARGET="${MOLLOW_LINUX_TARGET:-x86_64-unknown-linux-musl}"
+
+fetch_latest_version() {
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+    | grep -m1 '"tag_name"' \
+    | sed -E 's/.*"tag_name":[[:space:]]*"v([^"]+)".*/\1/' \
+    || true
+}
+
+if [[ -z "${VERSION}" ]]; then
+  VERSION="$(fetch_latest_version)"
+fi
+VERSION="${VERSION:-0.1.3}"
+
 ASSET="mollow-${TARGET}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}"
 
@@ -17,7 +30,7 @@ Uses the musl static binary by default for compatibility with older glibc
 (Ubuntu 20.04, Alibaba Cloud ECS, etc.). Override with MOLLOW_LINUX_TARGET if needed.
 
 Environment variables:
-  MOLLOW_VERSION       Release version without leading v (default: ${VERSION})
+  MOLLOW_VERSION       Release version without leading v (default: latest GitHub release)
   MOLLOW_REPO          GitHub repository (default: ${REPO})
   MOLLOW_INSTALL_DIR   Install directory (default: ${INSTALL_DIR})
   MOLLOW_LINUX_TARGET    Linux target triple (default: ${TARGET})

@@ -99,10 +99,10 @@ sequenceDiagram
 
 ## 安装
 
-当前版本：**[v0.1.2](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.2)**。
+当前版本：**[v0.1.3](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.3)**。
 已提供 macOS（Apple Silicon / Intel）、Linux x86_64（**musl 静态包 + glibc 包**）、Windows x86_64 预编译二进制。
 
-**v0.1.2 要点：** 修复 Linux 上 `GLIBC_2.39 not found`（Ubuntu 20.04、阿里云 ECS 等）；安装脚本默认使用 musl 静态二进制。
+**v0.1.3 要点：** Linux 上 GPU 显示可读型号（`nvidia-smi` / `pci.ids`）。**v0.1.2 要点：** 修复 Linux 上 `GLIBC_2.39 not found`（Ubuntu 20.04、阿里云 ECS 等）；安装脚本默认使用 musl 静态二进制。
 
 ### 按平台快速选择
 
@@ -152,8 +152,8 @@ mollow --version
 | 安装方式 | 升级方法 |
 | --- | --- |
 | **Homebrew**（macOS / Linux） | `brew update && brew upgrade mollow` |
-| **安装脚本** | 重新运行脚本（默认安装 `main` 分支脚本里写明的版本），或指定：`MOLLOW_VERSION=0.1.2 curl -fsSL …/install.sh \| bash` |
-| **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.2` |
+| **安装脚本** | 重新运行脚本（默认安装 GitHub 最新 Release），或指定：`MOLLOW_VERSION=0.1.3 curl -fsSL …/install.sh \| bash` |
+| **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.3` |
 | **手动下载** | 从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载新包，替换 `PATH` 中的二进制 |
 | **源码构建** | `git pull && cargo build --release -p mollow` |
 

@@ -1,18 +1,33 @@
 #Requires -Version 5.1
 param(
-    [string]$Version = "0.1.2",
+    [string]$Version = "",
     [string]$Repo = "ingeniousfrog/Mollow",
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\Mollow\bin"
 )
 
 $ErrorActionPreference = "Stop"
 
+function Get-LatestMollowVersion {
+    param([string]$Repository)
+    try {
+        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest"
+        return $response.tag_name.TrimStart("v")
+    }
+    catch {
+        return "0.1.3"
+    }
+}
+
+if (-not $Version) {
+    $Version = Get-LatestMollowVersion -Repository $Repo
+}
+
 function Show-Usage {
     Write-Host @"
 Install Mollow from GitHub Releases.
 
 Parameters:
-  -Version     Release version without leading v (default: 0.1.2)
+  -Version     Release version without leading v (default: latest GitHub release)
   -Repo        GitHub repository (default: ingeniousfrog/Mollow)
   -InstallDir  Install directory (default: %LOCALAPPDATA%\Programs\Mollow\bin)
 

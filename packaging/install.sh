@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${MOLLOW_VERSION:-0.1.2}"
+VERSION="${MOLLOW_VERSION:-}"
 REPO="${MOLLOW_REPO:-ingeniousfrog/Mollow}"
 INSTALL_DIR="${MOLLOW_INSTALL_DIR:-${HOME}/.local/bin}"
+
+fetch_latest_version() {
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+    | grep -m1 '"tag_name"' \
+    | sed -E 's/.*"tag_name":[[:space:]]*"v([^"]+)".*/\1/' \
+    || true
+}
+
+if [[ -z "${VERSION}" ]]; then
+  VERSION="$(fetch_latest_version)"
+fi
+VERSION="${VERSION:-0.1.3}"
 
 usage() {
   cat <<EOF
 Install Mollow from GitHub Releases.
 
 Environment variables:
-  MOLLOW_VERSION      Release tag version without leading v (default: ${VERSION})
+  MOLLOW_VERSION      Release tag version without leading v (default: latest GitHub release)
   MOLLOW_REPO         GitHub repository (default: ${REPO})
   MOLLOW_LINUX_TARGET Linux target triple (default on x86_64: x86_64-unknown-linux-musl)
 

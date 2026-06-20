@@ -103,10 +103,10 @@ sequenceDiagram
 
 ## Installation
 
-Current release: **[v0.1.2](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.2)**.
+Current release: **[v0.1.3](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.3)**.
 Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64 (**musl static + glibc builds**), and Windows x86_64.
 
-**v0.1.2 highlights:** fixes `GLIBC_2.39 not found` on older Linux (Ubuntu 20.04, cloud VPS). Install scripts default to the musl static binary.
+**v0.1.3 highlights:** readable Linux GPU names via `nvidia-smi` and `pci.ids`. **v0.1.2 highlights:** fixes `GLIBC_2.39 not found` on older Linux (Ubuntu 20.04, cloud VPS). Install scripts default to the musl static binary.
 
 ### Quick pick by platform
 
@@ -157,8 +157,8 @@ mollow --version
 | Install method | Upgrade steps |
 | --- | --- |
 | **Homebrew** (macOS / Linux) | `brew update && brew upgrade mollow` |
-| **Install scripts** | Re-run the script (defaults to the version baked into the script on `main`), or pin: `MOLLOW_VERSION=0.1.2 curl -fsSL …/install.sh \| bash` |
-| **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.2` |
+| **Install scripts** | Re-run the script (defaults to the latest GitHub release), or pin: `MOLLOW_VERSION=0.1.3 curl -fsSL …/install.sh \| bash` |
+| **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.3` |
 | **Manual download** | Download the new asset from [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) and replace the binary on your `PATH` |
 | **Build from source** | `git pull && cargo build --release -p mollow` |
 
