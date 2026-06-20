@@ -1,0 +1,30 @@
+# Package manifest for winget (community repo: microsoft/winget-pkgs).
+# Copy or adapt when submitting: Packages/i/IngeniousFrog/Mollow/<version>/ingeniousfrog.Mollow.yaml
+PackageIdentifier: ingeniousfrog.Mollow
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: ingeniousfrog
+PublisherUrl: https://github.com/ingeniousfrog
+PublisherSupportUrl: https://github.com/ingeniousfrog/Mollow/issues
+PackageName: Mollow
+PackageUrl: https://github.com/ingeniousfrog/Mollow
+License: Apache-2.0
+LicenseUrl: https://github.com/ingeniousfrog/Mollow/blob/main/LICENSE
+ShortDescription: Cross-platform machine inspection and performance-baseline CLI
+Moniker: mollow
+Tags:
+  - benchmark
+  - cli
+  - hardware
+  - inspection
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: mollow.exe
+        PortableCommandAlias: mollow
+    InstallerUrl: https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.0/mollow-x86_64-pc-windows-msvc.zip
+    InstallerSha256: REPLACE_WITH_RELEASE_SHA256_WINDOWS
+ManifestType: singleton
+ManifestVersion: 1.6.0

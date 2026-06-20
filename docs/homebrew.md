@@ -16,30 +16,56 @@ brew install mollow
 mollow inspect --format terminal --lang zh-CN
 ```
 
+On Linux with Homebrew installed, the same tap installs the Linux tarball from the
+multi-platform formula in [`packaging/homebrew/mollow.rb`](../packaging/homebrew/mollow.rb).
+
 ## Maintainer workflow
 
-1. Build release binaries (at minimum Apple Silicon macOS):
+### Automated release (recommended)
+
+Push a version tag to trigger [`.github/workflows/release.yml`](../.github/workflows/release.yml):
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow builds and uploads:
+
+| Asset | Platform |
+| --- | --- |
+| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon |
+| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 |
+| `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
+
+### Update the tap formula
+
+1. After the GitHub Release finishes, refresh checksum placeholders:
 
    ```bash
-   cargo build --release -p mollow
-   tar -czf mollow-aarch64-apple-darwin.tar.gz -C target/release mollow
-   shasum -a 256 mollow-aarch64-apple-darwin.tar.gz
+   ./packaging/update-homebrew-sha256.sh 0.1.0
    ```
 
-2. Create a GitHub Release on `ingeniousfrog/Mollow` (tag `v<version>`) and upload the tarball.
+2. Copy [`packaging/homebrew/mollow.rb`](../packaging/homebrew/mollow.rb) into the tap as
+   `Formula/mollow.rb` (update `version` if needed).
 
-3. Copy [`packaging/homebrew/mollow.rb`](../packaging/homebrew/mollow.rb) into the tap as `Formula/mollow.rb`.
+3. Push to [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap). Users can then
+   `brew install mollow`.
 
-4. Set `version`, `url`, and `sha256` to match the release asset.
+   ```bash
+   ./packaging/push-homebrew-tap.sh
+   ```
 
-5. Push to `homebrew-tap`. Users can then `brew install mollow`.
+### Manual fallback
 
-## Optional: Intel macOS / Linux
+If you need to build locally:
 
-Add separate release assets and either:
-
-- one formula with `on_macos` / `on_linux` blocks and per-arch `url` + `sha256`, or
-- split formulas (`mollow`, `mollow-linux`) if that is simpler to maintain.
+```bash
+cargo build --release -p mollow --target aarch64-apple-darwin
+tar -czf mollow-aarch64-apple-darwin.tar.gz -C target/aarch64-apple-darwin/release mollow
+shasum -a 256 mollow-aarch64-apple-darwin.tar.gz
+```
 
 ## Relation to CacheBar tap docs
 

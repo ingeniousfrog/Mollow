@@ -1,12 +1,15 @@
 use std::fmt::Write as _;
 use std::fs::File;
 use std::io::Read;
+use std::io::{Write, stdout};
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use mollow_core::{BenchmarkProfile, BenchmarkRun, ComparisonReport, MachineSnapshot};
-use mollow_platform::{collect_snapshot, native_probe};
+use mollow_core::{BenchmarkProfile, BenchmarkRun, ComparisonReport, MachineSnapshot, WatchField};
+use mollow_platform::{collect_snapshot, collect_watch_reading, native_probe};
 use mollow_report::{ReportFormat, ReportLanguage};
 use serde::de::DeserializeOwned;
 
@@ -80,6 +83,17 @@ enum Command {
         #[command(subcommand)]
         command: ArchiveCommand,
     },
+    /// Monitor memory, power, and thermal readings at a fixed interval.
+    Watch {
+        #[arg(short = 'i', long = "interval", default_value = "1")]
+        interval: u64,
+        #[arg(long, value_enum, default_value_t = Language::English)]
+        lang: Language,
+        #[arg(long, value_delimiter = ',', default_value = "memory,power,thermal")]
+        fields: Vec<CliWatchField>,
+        #[arg(long, help = "Stop after N refresh cycles (useful for tests)")]
+        count: Option<u64>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -110,6 +124,13 @@ enum ArchiveCommand {
         #[arg(long, value_enum, default_value_t = Language::English)]
         lang: Language,
     },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum CliWatchField {
+    Memory,
+    Power,
+    Thermal,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -212,7 +233,51 @@ pub fn execute(cli: &Cli) -> Result<Output, Box<dyn std::error::Error>> {
                 None,
             )),
         },
+        Command::Watch {
+            interval,
+            lang,
+            fields,
+            count,
+        } => {
+            run_watch(*interval, fields, (*lang).into(), *count)?;
+            Ok(rendered(String::new(), None))
+        }
     }
+}
+
+fn run_watch(
+    interval_secs: u64,
+    fields: &[CliWatchField],
+    language: ReportLanguage,
+    count: Option<u64>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if interval_secs == 0 {
+        return Err("interval must be at least 1 second".into());
+    }
+
+    let probe = native_probe();
+    let watch_fields = fields
+        .iter()
+        .copied()
+        .map(CliWatchField::into)
+        .collect::<Vec<_>>();
+    let mut iterations = 0u64;
+
+    loop {
+        let captured_at_unix_ms = unix_time_ms()?;
+        let reading = collect_watch_reading(&probe, captured_at_unix_ms);
+        let frame = mollow_report::render_watch_frame(&reading, &watch_fields, language);
+        print!("\x1b[2J\x1b[H{frame}");
+        stdout().flush()?;
+
+        iterations += 1;
+        if count.is_some_and(|limit| iterations >= limit) {
+            break;
+        }
+        thread::sleep(Duration::from_secs(interval_secs));
+    }
+
+    Ok(())
 }
 
 fn render_comparisons(
@@ -458,6 +523,16 @@ impl From<Language> for ReportLanguage {
         match language {
             Language::English => Self::English,
             Language::Chinese => Self::Chinese,
+        }
+    }
+}
+
+impl From<CliWatchField> for WatchField {
+    fn from(field: CliWatchField) -> Self {
+        match field {
+            CliWatchField::Memory => Self::Memory,
+            CliWatchField::Power => Self::Power,
+            CliWatchField::Thermal => Self::Thermal,
         }
     }
 }

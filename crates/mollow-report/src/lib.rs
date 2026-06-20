@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-use mollow_core::{BenchmarkRun, ComparisonReport, MachineSnapshot};
+use mollow_core::{BenchmarkRun, ComparisonReport, MachineSnapshot, WatchField, WatchReading};
 
 mod localization;
 
@@ -137,6 +137,108 @@ pub fn render_comparison(
             &render_comparison_markdown(comparison, language),
             language,
         )),
+    }
+}
+
+/// Renders a compact live watch frame for memory, power, and thermal readings.
+#[must_use]
+pub fn render_watch_frame(
+    reading: &WatchReading,
+    fields: &[WatchField],
+    language: ReportLanguage,
+) -> String {
+    let mut output = String::new();
+    line(
+        &mut output,
+        title(language, "Mollow Watch", "Mollow 实时监控"),
+    );
+    line(
+        &mut output,
+        &format!(
+            "  {}: {}",
+            title(language, "Updated", "更新时间"),
+            reading.captured_at_unix_ms
+        ),
+    );
+    for field in fields {
+        match field {
+            WatchField::Memory => append_watch_memory_line(&mut output, reading, language),
+            WatchField::Power => append_watch_power_line(&mut output, reading, language),
+            WatchField::Thermal => append_watch_thermal_line(&mut output, reading, language),
+        }
+    }
+    line(
+        &mut output,
+        title(language, "\nPress Ctrl+C to stop.", "\n按 Ctrl+C 停止。"),
+    );
+    output
+}
+
+fn append_watch_memory_line(output: &mut String, reading: &WatchReading, language: ReportLanguage) {
+    let label = title(language, "Memory available / total", "可用内存 / 总内存");
+    if let Some(memory) = reading.memory.value.as_ref() {
+        line(
+            output,
+            &format!(
+                "  {label}: {} / {}",
+                memory.available_bytes.map_or("-".to_owned(), bytes),
+                bytes(memory.total_bytes)
+            ),
+        );
+    } else {
+        line(
+            output,
+            &format!(
+                "  {label}: {}",
+                status_name(&reading.memory.status, language)
+            ),
+        );
+    }
+}
+
+fn append_watch_power_line(output: &mut String, reading: &WatchReading, language: ReportLanguage) {
+    let label = title(language, "Power", "电源");
+    let value = reading.power.value.as_ref().map_or_else(
+        || status_name(&reading.power.status, language).to_owned(),
+        |power| format_power_info(power, language),
+    );
+    let highlight = reading
+        .power
+        .value
+        .as_ref()
+        .is_some_and(|power| power.source == "battery");
+    line(
+        output,
+        &format!("  {label}: {}", highlight_line(value, highlight)),
+    );
+}
+
+fn append_watch_thermal_line(
+    output: &mut String,
+    reading: &WatchReading,
+    language: ReportLanguage,
+) {
+    let label = title(language, "Thermal", "温控");
+    let value = reading.thermal.value.as_ref().map_or_else(
+        || status_name(&reading.thermal.status, language).to_owned(),
+        format_thermal_info,
+    );
+    let highlight = reading
+        .thermal
+        .value
+        .as_ref()
+        .is_some_and(|thermal| thermal.state == "warning" || thermal.state == "critical");
+    line(
+        output,
+        &format!("  {label}: {}", highlight_line(value, highlight)),
+    );
+}
+
+fn highlight_line(value: String, highlight: bool) -> String {
+    if highlight {
+        format!("\x1b[33m{value}\x1b[0m")
+    } else {
+        value
     }
 }
 

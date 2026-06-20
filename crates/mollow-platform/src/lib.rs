@@ -7,11 +7,21 @@ mod runtimes;
 
 use mollow_core::{
     Capability, CpuInfo, DataSource, GpuInfo, MachineSnapshot, MediaInfo, MemoryInfo, PowerInfo,
-    RuntimeInfo, SCHEMA_VERSION, StorageVolume, SystemInfo, ThermalInfo,
+    RuntimeInfo, SCHEMA_VERSION, StorageVolume, SystemInfo, ThermalInfo, WatchReading,
 };
 
 pub use native::NativeProbe;
 use runtimes::detect_runtimes;
+
+#[must_use]
+pub fn collect_watch_reading(probe: &impl PlatformProbe, captured_at_unix_ms: u64) -> WatchReading {
+    WatchReading {
+        captured_at_unix_ms,
+        memory: observe(probe.memory(), &probe.source(ProbeArea::Memory)),
+        power: probe.power(),
+        thermal: probe.thermal(),
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProbeArea {

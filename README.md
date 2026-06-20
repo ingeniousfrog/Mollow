@@ -18,6 +18,7 @@ or system tuning tools.
 | Area | Capability |
 | --- | --- |
 | **Machine snapshot** (`inspect`) | OS, CPU, memory, storage volumes, GPU, media codecs, power, thermal state, installed runtimes |
+| **Live monitoring** (`watch`) | Refresh memory, power, and thermal readings at a fixed interval |
 | **Benchmarks** (`bench` / `capture`) | Versioned CPU, memory, storage, GPU (wgpu), and platform media workloads with median + MAD statistics |
 | **Comparison** (`compare`) | Schema/profile/workload validation, strict environment checks, field-level machine diffs, regression classification |
 | **Reporting** (`report`) | Same artifact rendered as terminal, JSON, Markdown, or semantic HTML (English / 简体中文) |
@@ -118,7 +119,7 @@ Add the binary to your `PATH`, or invoke via `cargo run --release -p mollow --`.
 > Use a **release** build for performance baselines. Debug builds run but emit a
 > comparability warning.
 
-### Homebrew (macOS, after first GitHub Release)
+### Homebrew (macOS / Linux, after first GitHub Release)
 
 Mollow is a CLI **Formula** (not a GUI Cask). It can live in the same
 [ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) as other tools:
@@ -130,6 +131,28 @@ brew install mollow
 
 See [docs/homebrew.md](docs/homebrew.md) and `packaging/homebrew/mollow.rb` for the
 maintainer release workflow.
+
+### Prebuilt binary install script
+
+**macOS / Linux**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+**Ubuntu / Debian (x86_64)**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+```
+
+**Windows (PowerShell)**
+
+```powershell
+irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
+```
+
+See [docs/packaging.md](docs/packaging.md) for Scoop, winget, and manual download options.
 
 ---
 
@@ -293,6 +316,33 @@ mollow report comparison.json --format markdown --lang zh-CN
 
 ---
 
+### `mollow watch`
+
+Monitor **memory**, **power**, and **thermal** readings at a fixed interval (similar in
+spirit to `gpustat -i 1`, but for environment state rather than GPU utilization).
+
+```bash
+mollow watch [OPTIONS]
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `-i`, `--interval` | `1` | Refresh interval in seconds |
+| `--fields` | `memory,power,thermal` | Comma-separated fields to show |
+| `--lang` | `english` | Report language |
+| `--count` | — | Stop after N refresh cycles |
+
+**Examples**
+
+```bash
+mollow watch -i 1
+mollow watch -i 5 --fields power,thermal --lang zh-CN
+```
+
+Battery power and thermal warning/critical states are highlighted in the terminal.
+
+---
+
 ### `mollow archive`
 
 Manage a **local directory** of benchmark JSON files (index + trends).
@@ -378,6 +428,7 @@ cargo test --workspace --release
 | [docs/comparison.md](docs/comparison.md) | Comparability and strict environment rules |
 | [docs/release-verification.md](docs/release-verification.md) | Pre-release checklist |
 | [docs/homebrew.md](docs/homebrew.md) | Formula packaging |
+| [docs/packaging.md](docs/packaging.md) | Cross-platform install, Scoop, winget |
 
 ---
 

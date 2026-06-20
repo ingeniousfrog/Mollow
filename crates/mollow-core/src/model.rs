@@ -155,6 +155,22 @@ pub struct ThermalInfo {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum WatchField {
+    Memory,
+    Power,
+    Thermal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WatchReading {
+    pub captured_at_unix_ms: u64,
+    pub memory: Capability<MemoryInfo>,
+    pub power: Capability<PowerInfo>,
+    pub thermal: Capability<ThermalInfo>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BenchmarkProfile {
     Quick,
     Standard,

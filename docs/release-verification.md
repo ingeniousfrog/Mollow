@@ -16,6 +16,7 @@ cargo audit
 
 ```bash
 cargo run --release -p mollow -- inspect --format json --lang zh-CN
+cargo run --release -p mollow -- watch -i 1 --count 1
 cargo run --release -p mollow -- bench --profile quick --format json
 cargo run --release -p mollow -- capture --output /tmp/mollow-baseline.json
 cargo run -p mollow -- compare /tmp/mollow-baseline.json /tmp/mollow-baseline.json --format markdown

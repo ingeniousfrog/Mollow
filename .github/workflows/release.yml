@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release -p mollow --target ${{ matrix.target }}
+
+      - name: Package release asset (Unix)
+        if: matrix.archive == 'tar'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ASSET="mollow-${{ matrix.target }}.tar.gz"
+          mkdir -p "dist/mollow-${VERSION}"
+          cp "target/${{ matrix.target }}/release/mollow" "dist/mollow-${VERSION}/mollow"
+          chmod +x "dist/mollow-${VERSION}/mollow"
+          tar -czf "dist/${ASSET}" -C "dist/mollow-${VERSION}" mollow
+          shasum -a 256 "dist/${ASSET}"
+
+      - name: Package release asset (Windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $asset = "mollow-${{ matrix.target }}.zip"
+          New-Item -ItemType Directory -Force -Path "dist/mollow-$version" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/mollow.exe" "dist/mollow-$version/mollow.exe"
+          Compress-Archive -Path "dist/mollow-$version/mollow.exe" -DestinationPath "dist/$asset" -Force
+          Get-FileHash "dist/$asset" -Algorithm SHA256
+
+      - name: Upload release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: mollow-${{ matrix.target }}
+          path: dist/mollow-*
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
