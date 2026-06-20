@@ -184,12 +184,10 @@ fn format_watch_timestamp(unix_ms: u64) -> String {
         return unix_ms.to_string();
     };
 
-    Local
-        .timestamp_opt(secs, nanos)
-        .single()
-        .map_or_else(|| unix_ms.to_string(), |datetime| {
-            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
-        })
+    Local.timestamp_opt(secs, nanos).single().map_or_else(
+        || unix_ms.to_string(),
+        |datetime| datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+    )
 }
 
 fn append_watch_memory_line(output: &mut String, reading: &WatchReading, language: ReportLanguage) {
