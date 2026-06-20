@@ -122,6 +122,39 @@ mollow --version
 mollow inspect --format terminal --lang zh-CN
 ```
 
+### 升级
+
+Homebrew **不会**在新版本发布后自动升级。若你装的是旧版，请先刷新 tap 再升级：
+
+```bash
+brew update
+brew upgrade mollow
+mollow --version
+```
+
+查看 Homebrew 当前识别的版本：
+
+```bash
+brew info ingeniousfrog/tap/mollow
+```
+
+若 `mollow --version` 仍落后于[最新 Release](https://github.com/ingeniousfrog/Mollow/releases/latest)，可强制重装：
+
+```bash
+brew uninstall mollow
+brew update
+brew install ingeniousfrog/tap/mollow
+mollow --version
+```
+
+| 安装方式 | 升级方法 |
+| --- | --- |
+| **Homebrew**（macOS / Linux） | `brew update && brew upgrade mollow` |
+| **安装脚本** | 重新运行脚本（默认安装 `main` 分支脚本里写明的版本），或指定：`MOLLOW_VERSION=0.1.1 curl -fsSL …/install.sh \| bash` |
+| **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.1` |
+| **手动下载** | 从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载新包，替换 `PATH` 中的二进制 |
+| **源码构建** | `git pull && cargo build --release -p mollow` |
+
 ---
 
 ### macOS
@@ -145,8 +178,9 @@ brew trust ingeniousfrog/tap
 升级 / 卸载：
 
 ```bash
+brew update          # 先刷新 ingeniousfrog/tap
 brew upgrade mollow
-brew uninstall mollow
+brew uninstall mollow  # 需要卸载时使用
 ```
 
 支持 Apple Silicon（`aarch64`）与 Intel（`x86_64`）。

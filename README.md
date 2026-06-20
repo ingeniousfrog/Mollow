@@ -126,6 +126,40 @@ mollow --version
 mollow inspect --format terminal --lang zh-CN
 ```
 
+### Upgrade
+
+Homebrew **does not auto-upgrade** when a new release ships. If you installed an older
+version, refresh the tap before upgrading:
+
+```bash
+brew update
+brew upgrade mollow
+mollow --version
+```
+
+Check what Homebrew thinks is installed:
+
+```bash
+brew info ingeniousfrog/tap/mollow
+```
+
+If `mollow --version` is still behind the [latest release](https://github.com/ingeniousfrog/Mollow/releases/latest), reinstall:
+
+```bash
+brew uninstall mollow
+brew update
+brew install ingeniousfrog/tap/mollow
+mollow --version
+```
+
+| Install method | Upgrade steps |
+| --- | --- |
+| **Homebrew** (macOS / Linux) | `brew update && brew upgrade mollow` |
+| **Install scripts** | Re-run the script (defaults to the version baked into the script on `main`), or pin: `MOLLOW_VERSION=0.1.1 curl -fsSL …/install.sh \| bash` |
+| **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.1` |
+| **Manual download** | Download the new asset from [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) and replace the binary on your `PATH` |
+| **Build from source** | `git pull && cargo build --release -p mollow` |
+
 ---
 
 ### macOS
@@ -149,8 +183,9 @@ brew trust ingeniousfrog/tap
 Upgrade / uninstall:
 
 ```bash
+brew update          # refresh ingeniousfrog/tap first
 brew upgrade mollow
-brew uninstall mollow
+brew uninstall mollow  # remove if needed
 ```
 
 Supported architectures: Apple Silicon (`aarch64`) and Intel (`x86_64`).
