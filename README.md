@@ -128,6 +128,37 @@ mollow --version
 mollow inspect --format terminal --lang zh-CN
 ```
 
+### System compatibility
+
+The table below covers **prebuilt binaries and install scripts**. This is separate from [Platform support](#platform-support) later in the doc, which describes what `inspect` can probe on each OS.
+
+#### Prebuilt asset matrix
+
+| Release asset | Architecture | OS requirements | Default in install script? |
+| --- | --- | --- | --- |
+| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 | **Static musl** — largely independent of system glibc; works on Ubuntu **18.04 / 20.04 / 22.04 / 24.04**, Debian, Alibaba/Tencent Cloud VPS, etc. | ✅ Linux / Ubuntu scripts |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 | Requires **glibc 2.35+** (~ Ubuntu 22.04+); may fail with `GLIBC_* not found` on 18.04 / 20.04 | ❌ Manual download only |
+| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon | macOS 11+ (Big Sur or later) | Homebrew / generic script |
+| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel | macOS 11+ | Homebrew / generic script |
+| `mollow-x86_64-pc-windows-msvc.zip` | Windows x64 | **Windows 10 / 11**, Windows Server 2016+; **PowerShell 5.1+** | ✅ `install.ps1` |
+
+#### Summary by platform
+
+| Platform | Support | Main constraints |
+| --- | --- | --- |
+| **Linux** | ✅ Install scripts default to **musl**; works on 18.04 through 24.04 | Prebuilt assets are **x86_64 only**; no Linux ARM64 package; scripts need `curl` and `tar` |
+| **Windows** | ✅ `install.ps1` installs the MSVC binary | **x64 only** (no Windows ARM64 package); **no Linux-style `GLIBC_*` errors**; needs GitHub access |
+| **macOS** | ✅ Homebrew or install script | Packages for Apple Silicon and Intel; the generic Linux script also works on macOS |
+
+#### FAQ
+
+- **Ubuntu 18.04?** Yes — use the default install script (musl build).
+- **Ubuntu 24.04?** Yes — both musl and gnu assets work; scripts still default to musl.
+- **Does Windows have Ubuntu-style libc limits?** No. Windows constraints are **OS version (Win10+)**, **x64 architecture**, and **PowerShell 5.1+**, not glibc.
+- **Installed the gnu Linux binary by mistake?** Remove the old binary and re-run the script, or force musl: `MOLLOW_LINUX_TARGET=x86_64-unknown-linux-musl` (see [Troubleshooting](#troubleshooting)).
+
+Not provided: Linux ARM64 / Windows ARM64 prebuilt packages, or `apt install mollow`. [Build from source](#build-from-source) for those environments.
+
 ### Upgrade & uninstall
 
 Install scripts **do not** auto-update an existing installation; upgrade manually after each release.
@@ -270,10 +301,7 @@ Download `mollow-aarch64-apple-darwin.tar.gz` or `mollow-x86_64-apple-darwin.tar
 
 Mollow is **not** packaged for `apt`, `dnf`, or official distro repos. Use one of the options below.
 
-> **glibc compatibility:** Install scripts download the **musl** Linux binary by default, which
-> runs on older systems (Ubuntu 20.04, Alibaba Cloud ECS, etc.). The separate
-> `mollow-x86_64-unknown-linux-gnu` asset requires **glibc 2.35+** (Ubuntu 22.04+). If you still
-> see `GLIBC_* not found`, upgrade to **v0.1.2+** or build from source.
+> See **[System compatibility](#system-compatibility)** above for OS and glibc requirements. Install scripts download the **musl** build by default.
 
 #### Option A — Install script (recommended)
 

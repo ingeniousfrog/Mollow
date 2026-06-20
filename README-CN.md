@@ -124,6 +124,37 @@ mollow --version
 mollow inspect --format terminal --lang zh-CN
 ```
 
+### 系统兼容性
+
+下表说明 **预编译二进制 / 安装脚本** 对操作系统与 CPU 架构的要求。这与文末「[平台支持](#平台支持)」不同——后者描述 `inspect` 能探测哪些硬件能力。
+
+#### 预编译包对照
+
+| Release 产物 | 架构 | 系统要求 | 安装脚本默认？ |
+| --- | --- | --- | --- |
+| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 | **musl 静态链接**，几乎不依赖系统 glibc；适用于 Ubuntu **18.04 / 20.04 / 22.04 / 24.04**、Debian、阿里云/腾讯云 ECS 等 | ✅ Linux / Ubuntu 脚本 |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 | 需要 **glibc 2.35+**（约 Ubuntu 22.04+）；在 18.04 / 20.04 上可能报 `GLIBC_* not found` | ❌ 仅手动下载 |
+| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon | macOS 11+（Big Sur 及更新） | Homebrew / 通用脚本 |
+| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel | macOS 11+ | Homebrew / 通用脚本 |
+| `mollow-x86_64-pc-windows-msvc.zip` | Windows x64 | **Windows 10 / 11**、Windows Server 2016+；需 **PowerShell 5.1+** | ✅ `install.ps1` |
+
+#### 按平台摘要
+
+| 平台 | 支持情况 | 主要限制 |
+| --- | --- | --- |
+| **Linux** | ✅ 安装脚本默认 **musl**，18.04 与 24.04 均可使用 | 预编译包仅 **x86_64**；无 Linux ARM64 包；脚本需 `curl`、`tar` |
+| **Windows** | ✅ `install.ps1` 安装 MSVC 二进制 | 仅 **x64**（无 Windows ARM64 包）；**不会出现** Linux 那种 `GLIBC_*` 错误；需能访问 GitHub |
+| **macOS** | ✅ Homebrew 或安装脚本 | Apple Silicon 与 Intel 均有包；通用 Linux 脚本在 macOS 上也可用 |
+
+#### 常见误区
+
+- **Ubuntu 18.04 能用吗？** 能。只要用默认安装脚本（musl 包），不依赖系统 glibc 版本。
+- **Ubuntu 24.04 能用吗？** 能。musl 与 gnu 包均可，脚本默认仍是 musl。
+- **Windows 会像 Ubuntu 那样受 libc 版本限制吗？** 不会。Windows 限制来自 **系统版本（Win10+）**、**x64 架构** 和 **PowerShell 5.1+**，而非 glibc。
+- **误装了 gnu 包怎么办？** 删除旧二进制后重装脚本，或显式使用 musl：`MOLLOW_LINUX_TARGET=x86_64-unknown-linux-musl`（见[常见问题](#常见问题)）。
+
+暂不提供：Linux ARM64 / Windows ARM64 预编译包、`apt install mollow` 官方源。此类环境请[从源码构建](#源码构建)。
+
 ### 升级与卸载
 
 安装脚本**不会**自动更新已安装版本；发新版后需要手动升级。各安装方式如下。
@@ -266,9 +297,7 @@ MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/i
 
 Mollow **不支持** `apt`、`dnf` 等官方包管理器直接安装。请使用以下方式之一。
 
-> **glibc 兼容性：** 安装脚本默认下载 **musl** 静态二进制，可在较旧系统上运行（Ubuntu 20.04、
-> 阿里云 ECS 等）。单独的 `mollow-x86_64-unknown-linux-gnu` 产物需要 **glibc 2.35+**（Ubuntu 22.04+）。
-> 若仍出现 `GLIBC_* not found`，请升级到 **v0.1.2+** 或从源码构建。
+> 系统与 glibc 要求见上文 **[系统兼容性](#系统兼容性)**。安装脚本默认下载 **musl** 静态包。
 
 #### 方式 A — 通用安装脚本（推荐）
 
