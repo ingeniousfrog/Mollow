@@ -6,7 +6,7 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.0/mollow-x86_64-pc-windows-msvc.zip",
-            "hash": "REPLACE_WITH_RELEASE_SHA256_WINDOWS"
+            "hash": "e5e6200b07eed69000ca0c1626e8b37db651025cfadff85252f9eebcb1a4b88f"
         }
     },
     "bin": "mollow.exe",
