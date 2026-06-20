@@ -74,17 +74,12 @@ or `permission_denied`—never inferred from device names alone.
 
 Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.3):
 
-### Ubuntu cloud GPU server (Alibaba Cloud ECS)
-
-Readable GPU names from `nvidia-smi` (`NVIDIA A10`) and `pci.ids` (virtual display `Cirrus Logic GD 5446`):
-
-![Ubuntu cloud GPU inspect output](docs/images/inspect-ubuntu-gpu.png)
-
-### macOS (Apple Silicon)
-
-Integrated GPU, VideoToolbox media capabilities, and installed runtimes:
-
-![macOS inspect output](docs/images/inspect-macos.png)
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/inspect-ubuntu-gpu.png" width="400" alt="Ubuntu cloud GPU server"/><br/><sub>Ubuntu cloud GPU (Alibaba Cloud ECS)</sub></td>
+    <td align="center"><img src="docs/images/inspect-macos.png" width="400" alt="macOS"/><br/><sub>macOS (Apple Silicon)</sub></td>
+  </tr>
+</table>
 
 ---
 
