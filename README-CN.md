@@ -99,6 +99,172 @@ sequenceDiagram
 
 ## 安装
 
+当前版本：**[v0.1.0](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.0)**。
+已提供 macOS（Apple Silicon / Intel）、Linux x86_64、Windows x86_64 预编译二进制。
+
+### 按平台快速选择
+
+| 平台 | 推荐方式 | 命令 |
+| --- | --- | --- |
+| **macOS** | Homebrew | `brew tap ingeniousfrog/tap && brew install mollow` |
+| **Linux**（通用） | 安装脚本 | 见下方 [Linux → 方式 A](#linux) |
+| **Ubuntu / Debian** | 专用脚本 | 见下方 [Linux → 方式 B](#linux) |
+| **Windows** | PowerShell 脚本 | 见下方 [Windows → 方式 A](#windows) |
+| **任意平台**（开发者） | 源码构建 | `cargo build --release -p mollow` |
+
+> **暂不支持：** `apt install mollow` — Mollow 未进入 Debian/Ubuntu 官方软件源。
+> 请使用 Ubuntu 安装脚本、Linux 版 Homebrew，或从 GitHub Releases 下载二进制。
+
+安装完成后验证：
+
+```bash
+mollow --version
+mollow inspect --format terminal --lang zh-CN
+```
+
+---
+
+### macOS
+
+#### 方式 A — Homebrew（推荐）
+
+Mollow 是 CLI **Formula**（非 GUI 的 Cask），托管于
+[ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap)：
+
+```bash
+brew tap ingeniousfrog/tap
+brew install mollow
+```
+
+若 Homebrew 提示 untrusted tap，先执行：
+
+```bash
+brew trust ingeniousfrog/tap
+```
+
+升级 / 卸载：
+
+```bash
+brew upgrade mollow
+brew uninstall mollow
+```
+
+支持 Apple Silicon（`aarch64`）与 Intel（`x86_64`）。
+
+#### 方式 B — 安装脚本
+
+从 GitHub Releases 下载对应架构的 tarball，默认安装到 `~/.local/bin`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+安装到系统目录：
+
+```bash
+MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | sudo bash
+```
+
+#### 方式 C — 手动下载
+
+从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载
+`mollow-aarch64-apple-darwin.tar.gz` 或 `mollow-x86_64-apple-darwin.tar.gz`，
+解压出 `mollow` 并加入 `PATH`。
+
+---
+
+### Linux
+
+Mollow **不支持** `apt`、`dnf` 等官方包管理器直接安装。请使用以下方式之一。
+
+#### 方式 A — 通用安装脚本（推荐）
+
+适用于 Linux x86_64（也支持 macOS）。默认安装路径：`~/.local/bin`。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+安装到系统目录：
+
+```bash
+MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | sudo bash
+```
+
+#### 方式 B — Ubuntu / Debian 专用脚本
+
+面向 Ubuntu/Debian x86_64。默认安装路径：`/usr/local/bin`。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+```
+
+仅安装到当前用户目录（无需 `sudo`）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh -o install-ubuntu.sh
+MOLLOW_INSTALL_DIR="$HOME/.local/bin" bash install-ubuntu.sh
+```
+
+依赖 `curl` 与 `tar`（若缺失：`sudo apt-get install -y curl`）。
+
+#### 方式 C — Linux 版 Homebrew
+
+```bash
+brew tap ingeniousfrog/tap
+brew install mollow
+```
+
+#### 方式 D — 手动下载
+
+从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载
+`mollow-x86_64-unknown-linux-gnu.tar.gz`，解压 `mollow` 并加入 `PATH`。
+
+---
+
+### Windows
+
+#### 方式 A — PowerShell 安装脚本（推荐）
+
+安装到 `%LOCALAPPDATA%\Programs\Mollow\bin`，并写入用户 `PATH`：
+
+```powershell
+irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
+```
+
+指定版本：
+
+```powershell
+irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version 0.1.0
+```
+
+安装后**重启终端**，然后：
+
+```powershell
+mollow --version
+```
+
+#### 方式 B — Scoop
+
+Manifest 模板：[`packaging/scoop/mollow.json`](packaging/scoop/mollow.json)。加入 bucket 后：
+
+```powershell
+scoop install mollow
+```
+
+#### 方式 C — winget
+
+Manifest 模板：[`packaging/winget/ingeniousfrog.Mollow.yaml`](packaging/winget/ingeniousfrog.Mollow.yaml)。
+可参考并提交至 [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)。
+
+#### 方式 D — 手动下载
+
+从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载
+`mollow-x86_64-pc-windows-msvc.zip`，解压 `mollow.exe` 并将其目录加入 `PATH`。
+
+---
+
 ### 源码构建
 
 环境要求：Rust **1.85+**（见 `Cargo.toml` 中的 `rust-version`）。
@@ -114,39 +280,31 @@ cargo build --release -p mollow
 
 > 性能基线请使用 **release** 构建。debug 构建可运行，但会提示不可作为可比基线。
 
-### Homebrew（macOS / Linux，需先发布 GitHub Release）
+---
 
-Mollow 是 CLI **Formula**（非 GUI 的 Cask），可与其它工具共用
-[ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap)：
+### Release 产物与维护者文档
 
-```bash
-brew tap ingeniousfrog/tap
-brew install mollow
-```
+| 产物 | 平台 |
+| --- | --- |
+| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon |
+| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 |
+| `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
-维护者发布流程见 [docs/homebrew.md](docs/homebrew.md) 与 `packaging/homebrew/mollow.rb`。
-
-### 预编译二进制安装脚本
-
-**macOS / Linux**
+发布新版本：推送 `v*` tag（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)），然后更新 checksum 并推送 Homebrew tap：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+./packaging/update-homebrew-sha256.sh <version>
+./packaging/update-package-checksums.sh <version>
+./packaging/push-homebrew-tap.sh
 ```
 
-**Ubuntu / Debian (x86_64)**
+更多说明：
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
-```
-
-**Windows（PowerShell）**
-
-```powershell
-irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
-```
-
-Scoop、winget 与手动下载见 [docs/packaging.md](docs/packaging.md)。
+| 文档 | 内容 |
+| --- | --- |
+| [docs/packaging.md](docs/packaging.md) | 全平台安装、Scoop、winget |
+| [docs/homebrew.md](docs/homebrew.md) | Homebrew Formula 维护流程 |
 
 ---
 

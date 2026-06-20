@@ -103,6 +103,171 @@ sequenceDiagram
 
 ## Installation
 
+Current release: **[v0.1.0](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.0)**.
+Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64, and Windows x86_64.
+
+### Quick pick by platform
+
+| Platform | Recommended | One-liner |
+| --- | --- | --- |
+| **macOS** | Homebrew | `brew tap ingeniousfrog/tap && brew install mollow` |
+| **Linux** (generic) | Install script | See [Linux → Option A](#linux) below |
+| **Ubuntu / Debian** | Ubuntu script | See [Linux → Option B](#linux) below |
+| **Windows** | PowerShell script | See [Windows → Option A](#windows) below |
+| **Any** (developers) | Build from source | `cargo build --release -p mollow` |
+
+> **Not available:** `apt install mollow` — Mollow is not in Debian/Ubuntu official repositories.
+> Use the Ubuntu install script, Homebrew on Linux, or a GitHub Release binary instead.
+
+After installation, verify:
+
+```bash
+mollow --version
+mollow inspect --format terminal --lang zh-CN
+```
+
+---
+
+### macOS
+
+#### Option A — Homebrew (recommended)
+
+Mollow is a CLI **Formula** (not a GUI Cask) in
+[ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap):
+
+```bash
+brew tap ingeniousfrog/tap
+brew install mollow
+```
+
+If Homebrew reports an untrusted tap, run once:
+
+```bash
+brew trust ingeniousfrog/tap
+```
+
+Upgrade / uninstall:
+
+```bash
+brew upgrade mollow
+brew uninstall mollow
+```
+
+Supported architectures: Apple Silicon (`aarch64`) and Intel (`x86_64`).
+
+#### Option B — Install script
+
+Downloads the matching release tarball to `~/.local/bin` by default:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+Install system-wide:
+
+```bash
+MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | sudo bash
+```
+
+#### Option C — Manual download
+
+Download `mollow-aarch64-apple-darwin.tar.gz` or `mollow-x86_64-apple-darwin.tar.gz` from
+[GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow`, and place it on your `PATH`.
+
+---
+
+### Linux
+
+Mollow is **not** packaged for `apt`, `dnf`, or official distro repos. Use one of the options below.
+
+#### Option A — Install script (recommended)
+
+Generic script for Linux x86_64 (and macOS). Default install path: `~/.local/bin`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+System-wide:
+
+```bash
+MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | sudo bash
+```
+
+#### Option B — Ubuntu / Debian script
+
+Dedicated script for Ubuntu/Debian x86_64. Default install path: `/usr/local/bin`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+```
+
+User-local install (no `sudo`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh -o install-ubuntu.sh
+MOLLOW_INSTALL_DIR="$HOME/.local/bin" bash install-ubuntu.sh
+```
+
+Requires `curl` and `tar` (`sudo apt-get install -y curl` if missing).
+
+#### Option C — Homebrew on Linux
+
+```bash
+brew tap ingeniousfrog/tap
+brew install mollow
+```
+
+#### Option D — Manual download
+
+Download `mollow-x86_64-unknown-linux-gnu.tar.gz` from
+[GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow`, and place it on your `PATH`.
+
+---
+
+### Windows
+
+#### Option A — PowerShell install script (recommended)
+
+Installs to `%LOCALAPPDATA%\Programs\Mollow\bin` and adds it to the user `PATH`:
+
+```powershell
+irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
+```
+
+Pin a specific version:
+
+```powershell
+irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version 0.1.0
+```
+
+Restart the terminal after installation, then:
+
+```powershell
+mollow --version
+```
+
+#### Option B — Scoop
+
+Manifest template: [`packaging/scoop/mollow.json`](packaging/scoop/mollow.json). Add it to your bucket, then:
+
+```powershell
+scoop install mollow
+```
+
+#### Option C — winget
+
+Manifest template: [`packaging/winget/ingeniousfrog.Mollow.yaml`](packaging/winget/ingeniousfrog.Mollow.yaml).
+Submit or adapt it for [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
+
+#### Option D — Manual download
+
+Download `mollow-x86_64-pc-windows-msvc.zip` from
+[GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow.exe`, and add its folder to `PATH`.
+
+---
+
 ### Build from source
 
 Requirements: Rust **1.85+** (`rust-version` in `Cargo.toml`).
@@ -119,40 +284,31 @@ Add the binary to your `PATH`, or invoke via `cargo run --release -p mollow --`.
 > Use a **release** build for performance baselines. Debug builds run but emit a
 > comparability warning.
 
-### Homebrew (macOS / Linux, after first GitHub Release)
+---
 
-Mollow is a CLI **Formula** (not a GUI Cask). It can live in the same
-[ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) as other tools:
+### Release assets and maintainer docs
 
-```bash
-brew tap ingeniousfrog/tap
-brew install mollow
-```
+| Asset | Platform |
+| --- | --- |
+| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon |
+| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 |
+| `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
 
-See [docs/homebrew.md](docs/homebrew.md) and `packaging/homebrew/mollow.rb` for the
-maintainer release workflow.
-
-### Prebuilt binary install script
-
-**macOS / Linux**
+Publishing a new version: push a `v*` tag (see [`.github/workflows/release.yml`](.github/workflows/release.yml)), then update checksums and the Homebrew tap:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+./packaging/update-homebrew-sha256.sh <version>
+./packaging/update-package-checksums.sh <version>
+./packaging/push-homebrew-tap.sh
 ```
 
-**Ubuntu / Debian (x86_64)**
+Further details:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
-```
-
-**Windows (PowerShell)**
-
-```powershell
-irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
-```
-
-See [docs/packaging.md](docs/packaging.md) for Scoop, winget, and manual download options.
+| Document | Topic |
+| --- | --- |
+| [docs/packaging.md](docs/packaging.md) | All install paths, Scoop, winget |
+| [docs/homebrew.md](docs/homebrew.md) | Homebrew Formula maintainer workflow |
 
 ---
 
