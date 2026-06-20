@@ -613,7 +613,7 @@ Full warmup counts, statistics (median + MAD), and storage safety: [docs/benchma
 | Platform | System / CPU / memory / storage | GPU | Media | Power | Thermal |
 | --- | --- | --- | --- | --- | --- |
 | macOS | Native APIs, sysctl | `system_profiler` | VideoToolbox | IOKit | SMC / thermal |
-| Linux | `/proc`, sysfs | DRM | VA-API / V4L2 | power-supply | thermal zones |
+| Linux | `/proc`, sysfs | DRM sysfs, nvidia-smi, pci.ids | VA-API / V4L2 | power-supply | thermal zones |
 | Windows | Win32 / NT | DXGI | Media Foundation | Win32 power | WMI |
 
 ---

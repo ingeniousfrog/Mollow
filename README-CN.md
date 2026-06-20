@@ -604,7 +604,7 @@ mollow archive trend --dir ~/.mollow/archive --workload gpu --lang zh-CN
 | 平台 | 系统 / CPU / 内存 / 存储 | GPU | 媒体 | 电源 | 温控 |
 | --- | --- | --- | --- | --- | --- |
 | macOS | 原生 API、sysctl | `system_profiler` | VideoToolbox | IOKit | SMC / 温控 |
-| Linux | `/proc`、sysfs | DRM | VA-API / V4L2 | power-supply | thermal zone |
+| Linux | `/proc`、sysfs | DRM sysfs、nvidia-smi、pci.ids | VA-API / V4L2 | power-supply | thermal zone |
 | Windows | Win32 / NT | DXGI | Media Foundation | Win32 电源 | WMI |
 
 ---

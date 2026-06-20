@@ -10,6 +10,8 @@ use mollow_core::{
 };
 
 #[cfg(target_os = "linux")]
+use crate::linux_gpu;
+#[cfg(target_os = "linux")]
 use crate::linux_media::{v4l2_codecs, vaapi_codecs};
 use crate::linux_parse::{parse_cpuinfo, parse_meminfo, parse_mountinfo, parse_os_release};
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
@@ -94,7 +96,7 @@ impl PlatformProbe for NativeProbe {
     }
 
     fn gpu(&self) -> Capability<Vec<GpuInfo>> {
-        linux_gpus().map_or_else(
+        linux_gpu::enumerate_gpus().map_or_else(
             |error| Capability::error(error.to_string()),
             |gpus| {
                 if gpus.is_empty() {
@@ -159,7 +161,7 @@ impl PlatformProbe for NativeProbe {
             ProbeArea::Memory => ("linux-memory", "/proc/meminfo"),
             ProbeArea::Storage => ("linux-storage", "/proc/self/mountinfo and statvfs"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
-            ProbeArea::Gpu => ("linux-gpu", "DRM sysfs"),
+            ProbeArea::Gpu => ("linux-gpu", "DRM sysfs, nvidia-smi, pci.ids"),
             ProbeArea::Media => ("linux-media", "VA-API and V4L2"),
             ProbeArea::Power => ("linux-power", "power_supply sysfs"),
             ProbeArea::Thermal => ("linux-thermal", "thermal sysfs"),
@@ -169,59 +171,6 @@ impl PlatformProbe for NativeProbe {
             provider: provider.to_owned(),
             detail: Some(detail.to_owned()),
         }
-    }
-}
-
-fn linux_gpus() -> io::Result<Vec<GpuInfo>> {
-    let entries = fs::read_dir("/sys/class/drm")?;
-    let mut gpus = Vec::new();
-    for entry in entries.filter_map(Result::ok) {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if !is_drm_card(&name) {
-            continue;
-        }
-        let device = entry.path().join("device");
-        if !device.exists() {
-            continue;
-        }
-        let vendor_id = read_trimmed(device.join("vendor")).ok();
-        let device_id = read_trimmed(device.join("device")).ok();
-        let vendor = vendor_id.as_deref().map(pci_vendor_name);
-        let driver = fs::read_link(device.join("driver")).ok().and_then(|path| {
-            path.file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-        });
-        let driver_version = driver.as_ref().and_then(|driver| {
-            read_trimmed(Path::new("/sys/module").join(driver).join("version")).ok()
-        });
-        gpus.push(GpuInfo {
-            name: format!(
-                "{} {}",
-                vendor.as_deref().unwrap_or("PCI GPU"),
-                device_id.as_deref().unwrap_or("unknown")
-            ),
-            vendor,
-            driver_version,
-            memory_bytes: None,
-            apis: vec!["DRM".to_owned()],
-        });
-    }
-    Ok(gpus)
-}
-
-fn is_drm_card(name: &str) -> bool {
-    name.strip_prefix("card").is_some_and(|suffix| {
-        !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
-    })
-}
-
-fn pci_vendor_name(id: &str) -> String {
-    match id.trim_start_matches("0x").to_ascii_lowercase().as_str() {
-        "1002" => "AMD".to_owned(),
-        "10de" => "NVIDIA".to_owned(),
-        "8086" => "Intel".to_owned(),
-        "106b" => "Apple".to_owned(),
-        other => format!("PCI {other}"),
     }
 }
 
