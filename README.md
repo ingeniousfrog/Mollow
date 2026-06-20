@@ -128,7 +128,11 @@ mollow --version
 mollow inspect --format terminal --lang zh-CN
 ```
 
-### Upgrade
+### Upgrade & uninstall
+
+Install scripts **do not** auto-update an existing installation; upgrade manually after each release.
+
+#### Upgrade
 
 Homebrew **does not auto-upgrade** when a new release ships. If you installed an older
 version, refresh the tap before upgrading:
@@ -154,13 +158,46 @@ brew install ingeniousfrog/tap/mollow
 mollow --version
 ```
 
-| Install method | Upgrade steps |
+**Linux / macOS install scripts** — re-run the same install command to overwrite the old binary (scripts default to the latest GitHub release):
+
+```bash
+# Ubuntu / Debian / cloud VPS (system path)
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+
+# Generic Linux / macOS (user path ~/.local/bin)
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+Pin a version if CDN caching serves an old script:
+
+```bash
+MOLLOW_VERSION=0.1.3 curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+```
+
+**Windows PowerShell** — re-run `install.ps1`, or `.\install.ps1 -Version 0.1.3` (restart your terminal afterward).
+
+| Install method | Upgrade |
 | --- | --- |
 | **Homebrew** (macOS / Linux) | `brew update && brew upgrade mollow` |
-| **Install scripts** | Re-run the script (defaults to the latest GitHub release), or pin: `MOLLOW_VERSION=0.1.3 curl -fsSL …/install.sh \| bash` |
-| **Windows PowerShell** | Re-run `install.ps1`, or `.\install.ps1 -Version 0.1.3` |
+| **Install scripts** (Linux / macOS) | Re-run the matching install script (see above) |
+| **Windows PowerShell** | Re-run `install.ps1` |
+| **Scoop** | `scoop update mollow` |
 | **Manual download** | Download the new asset from [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) and replace the binary on your `PATH` |
 | **Build from source** | `git pull && cargo build --release -p mollow` |
+
+#### Uninstall
+
+| Install method | Uninstall |
+| --- | --- |
+| **Homebrew** | `brew uninstall mollow` |
+| **Linux install script** (system path) | `sudo rm -f /usr/local/bin/mollow` |
+| **Linux / macOS install script** (user path) | `rm -f ~/.local/bin/mollow` |
+| **Windows PowerShell** | Delete `%LOCALAPPDATA%\Programs\Mollow\bin\mollow.exe` and remove that directory from the user `PATH` (Environment Variables → user `Path`) |
+| **Scoop** | `scoop uninstall mollow` |
+| **Manual download** | Delete the `mollow` / `mollow.exe` you added to `PATH` |
+| **Build from source** | Remove `target/release/mollow` (or wherever you copied it) |
+
+After uninstalling, run `which mollow` (Linux / macOS) or `Get-Command mollow` (Windows) to confirm nothing remains on your `PATH`.
 
 ### Troubleshooting
 
@@ -298,7 +335,7 @@ Pin a specific version:
 
 ```powershell
 irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.2
+.\install.ps1 -Version 0.1.3
 ```
 
 Restart the terminal after installation, then:

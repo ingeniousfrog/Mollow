@@ -124,7 +124,11 @@ mollow --version
 mollow inspect --format terminal --lang zh-CN
 ```
 
-### 升级
+### 升级与卸载
+
+安装脚本**不会**自动更新已安装版本；发新版后需要手动升级。各安装方式如下。
+
+#### 升级
 
 Homebrew **不会**在新版本发布后自动升级。若你装的是旧版，请先刷新 tap 再升级：
 
@@ -149,13 +153,46 @@ brew install ingeniousfrog/tap/mollow
 mollow --version
 ```
 
-| 安装方式 | 升级方法 |
+**Linux / macOS 安装脚本** — 直接重新运行安装命令即可覆盖旧二进制（脚本默认拉取 GitHub 最新 Release）：
+
+```bash
+# Ubuntu / Debian / 云服务器（系统目录）
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+
+# 通用 Linux / macOS（用户目录 ~/.local/bin）
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
+```
+
+指定版本（例如网络缓存导致脚本未更新时）：
+
+```bash
+MOLLOW_VERSION=0.1.3 curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+```
+
+**Windows PowerShell** — 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.3`（安装后重启终端）。
+
+| 安装方式 | 升级 |
 | --- | --- |
 | **Homebrew**（macOS / Linux） | `brew update && brew upgrade mollow` |
-| **安装脚本** | 重新运行脚本（默认安装 GitHub 最新 Release），或指定：`MOLLOW_VERSION=0.1.3 curl -fsSL …/install.sh \| bash` |
-| **Windows PowerShell** | 重新运行 `install.ps1`，或 `.\install.ps1 -Version 0.1.3` |
+| **安装脚本**（Linux / macOS） | 重新运行对应安装脚本（见上文） |
+| **Windows PowerShell** | 重新运行 `install.ps1` |
+| **Scoop** | `scoop update mollow` |
 | **手动下载** | 从 [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) 下载新包，替换 `PATH` 中的二进制 |
 | **源码构建** | `git pull && cargo build --release -p mollow` |
+
+#### 卸载
+
+| 安装方式 | 卸载 |
+| --- | --- |
+| **Homebrew** | `brew uninstall mollow` |
+| **Linux 安装脚本**（系统目录） | `sudo rm -f /usr/local/bin/mollow` |
+| **Linux / macOS 安装脚本**（用户目录） | `rm -f ~/.local/bin/mollow` |
+| **Windows PowerShell** | 删除 `%LOCALAPPDATA%\Programs\Mollow\bin\mollow.exe`，并从用户 `PATH` 中移除该目录（「环境变量」→ 用户变量 `Path`） |
+| **Scoop** | `scoop uninstall mollow` |
+| **手动下载** | 删除你放入 `PATH` 的 `mollow` / `mollow.exe` |
+| **源码构建** | 删除 `target/release/mollow`（或你复制到的目标路径） |
+
+卸载后可用 `which mollow`（Linux / macOS）或 `Get-Command mollow`（Windows）确认是否还有残留。
 
 ### 常见问题
 
@@ -293,7 +330,7 @@ irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/instal
 
 ```powershell
 irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.2
+.\install.ps1 -Version 0.1.3
 ```
 
 安装后**重启终端**，然后：
