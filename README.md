@@ -2,6 +2,8 @@
 
 English | [简体中文](README-CN.md)
 
+> **Quick tour:** Don't want to read the full README? Start with the **[Mollow visual showcase](https://ingeniousfrog.github.io/Mollow/)** — a one-page guided overview of installation, structure, and typical workflows.
+
 **Mollow** is a cross-platform CLI for machine inspection and performance baselines.
 It collects versioned hardware and runtime facts, runs small reproducible workloads,
 and compares results across time or machines—with explicit rules for when a diff is
@@ -10,6 +12,19 @@ statistically meaningful.
 Mollow is built for **environment audits**, **regression checks**, and **baseline
 tracking**. It is not a replacement for full benchmark suites, continuous profilers,
 or system tuning tools.
+
+## Contents
+
+- [What Mollow does](#what-mollow-does)
+- [Sample `inspect` output](#sample-inspect-output)
+- [How it fits together](#how-it-fits-together)
+- [Installation](#installation)
+- [Command reference](#command-reference)
+- [Benchmark profiles](#benchmark-profiles)
+- [Platform support](#platform-support)
+- [Schema versions](#schema-versions)
+- [Development](#development)
+- [License](#license)
 
 ---
 
@@ -52,6 +67,24 @@ or `permission_denied`—never inferred from device names alone.
 | `power` | AC/battery, charge %, low-power mode |
 | `thermal` | State, temperature, sensor |
 | `runtimes` | rustc, cargo, git, node, python (when present) |
+
+---
+
+## Sample `inspect` output
+
+Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.3):
+
+### Ubuntu cloud GPU server (Alibaba Cloud ECS)
+
+Readable GPU names from `nvidia-smi` (`NVIDIA A10`) and `pci.ids` (virtual display `Cirrus Logic GD 5446`):
+
+![Ubuntu cloud GPU inspect output](docs/images/inspect-ubuntu-gpu.png)
+
+### macOS (Apple Silicon)
+
+Integrated GPU, VideoToolbox media capabilities, and installed runtimes:
+
+![macOS inspect output](docs/images/inspect-macos.png)
 
 ---
 
