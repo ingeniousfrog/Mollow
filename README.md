@@ -90,7 +90,7 @@ Details: [docs/hardware-enrichment.md](docs/hardware-enrichment.md) · [ADR-0002
 
 ## Sample output
 
-Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.4):
+Terminal output from `mollow inspect --format terminal --lang english`:
 
 <table>
   <tr>
