@@ -1030,12 +1030,8 @@ fn append_memory_modules(
                         module.mem_type.as_deref().unwrap_or("-"),
                         module
                             .speed_mts
-                            .map(|speed| speed.to_string())
-                            .unwrap_or_else(|| "-".to_owned()),
-                        module
-                            .size_bytes
-                            .map(bytes)
-                            .unwrap_or_else(|| "-".to_owned())
+                            .map_or_else(|| "-".to_owned(), |speed| speed.to_string()),
+                        module.size_bytes.map_or_else(|| "-".to_owned(), bytes)
                     ),
                 );
             }

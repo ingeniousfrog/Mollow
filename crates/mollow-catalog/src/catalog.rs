@@ -200,7 +200,7 @@ fn lookup_gpus(catalog: &HardwareCatalog, gpus: &[GpuInfo]) -> Capability<Vec<Gp
                 diagram_template: entry.diagram_template.clone(),
                 reference_score: entry.gpu_reference_score,
             });
-        } else if normalized.contains("apple") && normalized.contains("m") {
+        } else if normalized.contains("apple") && normalized.contains('m') {
             if let Some(entry) = catalog
                 .gpus
                 .iter()

@@ -130,12 +130,8 @@ pub fn collect_snapshot(
     mollow_version: &str,
     captured_at_unix_ms: u64,
 ) -> MachineSnapshot {
-    collect_snapshot_with_options(
-        probe,
-        mollow_version,
-        captured_at_unix_ms,
-        SnapshotOptions::default(),
-    )
+    let options = SnapshotOptions::default();
+    collect_snapshot_with_options(probe, mollow_version, captured_at_unix_ms, &options)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -150,7 +146,7 @@ pub fn collect_snapshot_with_options(
     probe: &impl PlatformProbe,
     mollow_version: &str,
     captured_at_unix_ms: u64,
-    options: SnapshotOptions,
+    options: &SnapshotOptions,
 ) -> MachineSnapshot {
     let system = observe(probe.system(), &probe.source(ProbeArea::System));
     let cpu = observe(probe.cpu(), &probe.source(ProbeArea::Cpu));
@@ -185,7 +181,7 @@ pub fn collect_snapshot_with_options(
 
 fn enrich_snapshot(
     snapshot: &MachineSnapshot,
-    options: SnapshotOptions,
+    options: &SnapshotOptions,
 ) -> Capability<HardwareContext> {
     let cpu_model = snapshot
         .cpu
@@ -221,7 +217,7 @@ pub fn apply_hardware_enrichment(
 ) {
     snapshot.hardware_context = enrich_snapshot(
         snapshot,
-        SnapshotOptions {
+        &SnapshotOptions {
             enrich: true,
             cpu_workload: cpu_workload.cloned(),
             gpu_workload: gpu_workload.cloned(),

@@ -441,14 +441,15 @@ fn render_archive_trend(
 
 fn current_snapshot(enrich: bool) -> Result<MachineSnapshot, Box<dyn std::error::Error>> {
     let captured_at_unix_ms = unix_time_ms()?;
+    let options = SnapshotOptions {
+        enrich,
+        ..SnapshotOptions::default()
+    };
     Ok(collect_snapshot_with_options(
         &native_probe(),
         env!("CARGO_PKG_VERSION"),
         captured_at_unix_ms,
-        SnapshotOptions {
-            enrich,
-            ..SnapshotOptions::default()
-        },
+        &options,
     ))
 }
 
@@ -457,11 +458,12 @@ fn current_benchmark(
     enrich: bool,
 ) -> Result<BenchmarkRun, Box<dyn std::error::Error>> {
     let started_at_unix_ms = unix_time_ms()?;
+    let options = SnapshotOptions::default();
     let mut snapshot = collect_snapshot_with_options(
         &native_probe(),
         env!("CARGO_PKG_VERSION"),
         started_at_unix_ms,
-        SnapshotOptions::default(),
+        &options,
     );
     let mut benchmark = mollow_bench::run_suite(
         profile,

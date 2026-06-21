@@ -411,16 +411,16 @@ fn parse_speed_mts(input: &str) -> Option<u32> {
 
 fn parse_memory_size_bytes(input: &str) -> Option<u64> {
     let mut parts = input.split_whitespace();
-    let amount = parts.next()?.parse::<f64>().ok()?;
+    let amount = parts.next()?.parse::<u64>().ok()?;
     let unit = parts.next().unwrap_or("GB");
     let multiplier = match unit.to_ascii_uppercase().as_str() {
-        "KB" => 1_024.0,
-        "MB" => 1_024.0 * 1_024.0,
-        "GB" => 1_024.0 * 1_024.0 * 1_024.0,
-        "TB" => 1_024.0 * 1_024.0 * 1_024.0 * 1_024.0,
+        "KB" => 1_024,
+        "MB" => 1_024 * 1_024,
+        "GB" => 1_024 * 1_024 * 1_024,
+        "TB" => 1_024 * 1_024 * 1_024 * 1_024,
         _ => return None,
     };
-    Some((amount * multiplier) as u64)
+    amount.checked_mul(multiplier)
 }
 
 fn parse_pmset_battery(input: &str) -> PowerInfo {
