@@ -11,17 +11,17 @@ class Mollow < Formula
   on_macos do
     on_arm do
       url "https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.4/mollow-aarch64-apple-darwin.tar.gz"
-      sha256 "48ee3d76b77984c538e285e7d3a3853b36b74f647688adb4ee01da44f3a680d0"
+      sha256 "3a94934670189cf459b75c6ae1db9514f9fd0ec7d5574071e621940de38dbd0a"
     end
     on_intel do
       url "https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.4/mollow-x86_64-apple-darwin.tar.gz"
-      sha256 "2807d7c4b6b104c3acabecee9f502c80d50e9acec486313a92ecb22917d2e4cf"
+      sha256 "53e6820dff068b93ee57021faf58de7fe3b8e26507d88c0371a01ee8171a22ba"
     end
   end
 
   on_linux do
     url "https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.4/mollow-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "ea069f20482764d0e6a5344bd1a71db9d412db6b9d5f8e83758120f2c0fd2d52"
+    sha256 "0bfce7ffc21aea4ee61e046f746b637d1151ef77815e850635774ee1de1bb6c8"
   end
 
   def install

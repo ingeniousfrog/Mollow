@@ -25,6 +25,6 @@ Installers:
       - RelativeFilePath: mollow.exe
         PortableCommandAlias: mollow
     InstallerUrl: https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.4/mollow-x86_64-pc-windows-msvc.zip
-    InstallerSha256: c8a8f8307b558c8bdf323dbb2c4c1eb082b76fc5e85d6ab8f9a6754077d1526f
+    InstallerSha256: a8808e13d9d6fe09fca315027530612895935f2dc2c3df3f21db5245d4ab92f9
 ManifestType: singleton
 ManifestVersion: 1.6.0
