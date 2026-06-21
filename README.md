@@ -2,78 +2,93 @@
 
 English | [简体中文](README-CN.md)
 
-> **Quick tour:** Don't want to read the full README? Start with the **[Mollow visual showcase](https://ingeniousfrog.github.io/Mollow/)** — a one-page guided overview of installation, structure, and typical workflows.
+Cross-platform CLI for **machine inspection**, **performance baselines**, and **environment-aware comparison**.
 
-**Mollow** is a cross-platform CLI for machine inspection and performance baselines.
-It collects versioned hardware and runtime facts, runs small reproducible workloads,
-and compares results across time or machines—with explicit rules for when a diff is
-statistically meaningful.
-
-Mollow is built for **environment audits**, **regression checks**, and **baseline
-tracking**. It is not a replacement for full benchmark suites, continuous profilers,
-or system tuning tools.
-
-## Contents
-
-- [What Mollow does](#what-mollow-does)
-- [Sample `inspect` output](#sample-inspect-output)
-- [How it fits together](#how-it-fits-together)
-- [Installation](#installation)
-- [Command reference](#command-reference)
-- [Benchmark profiles](#benchmark-profiles)
-- [Platform support](#platform-support)
-- [Schema versions](#schema-versions)
-- [Development](#development)
-- [License](#license)
+> **Visual overview:** [Mollow showcase](https://ingeniousfrog.github.io/Mollow/) — installation paths, architecture, and typical workflows on one page.
 
 ---
 
-## What Mollow does
+## Overview
 
-| Area | Capability |
-| --- | --- |
-| **Machine snapshot** (`inspect`) | OS, CPU, memory (incl. DIMM modules), storage, GPU, media, power, thermal, runtimes; optional `--enrich` for offline hardware catalog |
-| **Live monitoring** (`watch`) | Refresh memory, power, and thermal readings at a fixed interval |
-| **Benchmarks** (`bench` / `capture`) | Versioned CPU, memory, storage, GPU (wgpu), and platform media workloads with median + MAD statistics |
-| **Comparison** (`compare`) | Schema/profile/workload validation, strict environment checks, field-level machine diffs, regression classification |
-| **Reporting** (`report`) | Same artifact rendered as terminal, JSON, Markdown, or semantic HTML (English / 简体中文) |
-| **Archive** (`archive`) | Local baseline index and per-workload trend lines |
+Mollow collects versioned hardware and runtime facts, runs small reproducible workloads, and compares results across time or machines—with explicit rules for when a diff is statistically meaningful.
 
-Every probe uses a **capability model**: values are `available`, `unsupported`, `error`,
-or `permission_denied`—never inferred from device names alone.
+**Primary use cases:** environment audits, regression checks, baseline tracking.
 
-### Benchmark workloads (v2)
+**Out of scope:** full benchmark suites, continuous profilers, system tuning, or hardware shopping tier lists.
 
-| Domain | Workload ID | Backend |
+Every probe uses a **capability model**: values are `available`, `unsupported`, `error`, or `permission_denied`—never inferred from device names alone.
+
+---
+
+## Features
+
+| Area | Commands | Description |
 | --- | --- | --- |
-| CPU | `cpu.fnv1a-stream` | Host FNV-1a hash over deterministic input |
-| Memory | `memory.sequential-copy` | Host sequential `copy_from_slice` |
-| Storage | `storage.sequential-write-read` | Temp-file write, `sync_all`, verified read |
-| GPU | `gpu.wgpu-matrix-multiply` | wgpu compute shader (Metal / Vulkan / DX12) |
-| Media (macOS) | `media.videotoolbox-h264-encode` | VideoToolbox hardware H.264 encode |
-| Media (Windows) | `media.media-foundation-h264-decode` | Media Foundation hardware H.264 decode |
-| Media (Linux) | `media.vaapi-h264-decode` | VA-API hardware H.264 decode |
-
-### Snapshot schema (v4) — fields collected by `inspect`
-
-| Component | Examples |
-| --- | --- |
-| `system` | OS name/version, kernel, architecture, hostname |
-| `cpu` | Model, physical/logical cores, ISA features |
-| `memory` | Total/available RAM, swap usage, per-module type/speed (when available) |
-| `storage` | Mount points, volume size, filesystem type |
-| `gpu` | Device name, vendor, APIs |
-| `media` | Backend, hardware decode/encode codec lists |
-| `power` | AC/battery, charge %, low-power mode |
-| `thermal` | State, temperature, sensor |
-| `runtimes` | rustc, cargo, git, node, python (when present) |
-| `hardware_context` | Optional (`--enrich`): catalog specs, architecture summary, benchmark reference |
-
-See [docs/hardware-enrichment.md](docs/hardware-enrichment.md) for the offline catalog and `--enrich` behavior.
+| Machine snapshot | `inspect` | OS, CPU, memory (incl. DIMM modules), storage, GPU, media, power, thermal, runtimes |
+| Hardware catalog | `inspect --enrich`, `capture --enrich` | Optional offline specs, architecture summaries, benchmark reference context |
+| Live monitoring | `watch` | Refresh memory, power, and thermal readings at a fixed interval |
+| Benchmarks | `bench`, `capture` | Versioned CPU, memory, storage, GPU (wgpu), and platform media workloads (median + MAD) |
+| Comparison | `compare` | Schema/profile validation, strict environment checks, regression classification |
+| Reporting | `report` | Render artifacts as terminal, JSON, Markdown, or semantic HTML (English / 简体中文) |
+| Archive | `archive` | Local baseline index and per-workload trend lines |
 
 ---
 
-## Sample `inspect` output
+## Quick start
+
+```bash
+# macOS
+brew tap ingeniousfrog/tap && brew install mollow
+
+# Linux (Ubuntu / Debian / cloud VPS)
+curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
+```
+
+Verify and capture a baseline:
+
+```bash
+mollow --version
+mollow inspect --format terminal --lang zh-CN
+mollow capture --profile quick --output baseline.json
+```
+
+See [Installation](#installation) for all platforms, upgrade paths, and troubleshooting.
+
+---
+
+## Hardware enrichment
+
+Use `--enrich` to attach `hardware_context` from the embedded offline catalog ([`data/hardware/catalog.json`](data/hardware/catalog.json)). Without the flag, enrichment is `unsupported` and snapshots stay minimal.
+
+```bash
+mollow inspect --enrich --format terminal --lang zh-CN
+mollow capture --enrich --profile quick --output baseline.json
+```
+
+**Provides:** codename, process node, clocks, memory type, architecture summaries, reference URLs, simplified SVG diagrams (HTML), and optional local-vs-catalog benchmark deltas.
+
+**Does not provide:** online APIs, tier-list ranks, or vendor official diagrams.
+
+### Catalog coverage (v2026.06)
+
+| Category | Coverage | Matching notes |
+| --- | --- | --- |
+| **CPU** | Intel Core, AMD Ryzen, **Apple Silicon M1–M5** | Normalized model string lookup |
+| **GPU** | NVIDIA RTX, AMD Radeon RX, **Apple Silicon M1–M5** | macOS reports integrated GPU as chip name (e.g. `Apple M2`) → **Exact** match |
+| **Memory** | DDR4/DDR5 profiles, LPDDR5 (Apple Silicon / mobile) | Module-level detail when OS exposes it (Linux DMI, macOS `system_profiler`) |
+
+Apple Silicon **Pro / Max / Ultra** variants map to the same generation entry (consistent with CPU catalog granularity). GPU core counts vary by SKU and are shown from platform probing when available, not from catalog rank.
+
+Reference scores use a **synthetic reference index** for relative context—not published benchmark reproductions.
+
+Details: [docs/hardware-enrichment.md](docs/hardware-enrichment.md) · [ADR-0002](docs/adr/0002-hardware-enrichment-decisions.md)
+
+---
+
+## Sample output
 
 Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.4):
 
@@ -86,7 +101,7 @@ Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.4):
 
 ---
 
-## How it fits together
+## Workflow
 
 ```mermaid
 flowchart LR
@@ -134,342 +149,73 @@ sequenceDiagram
 
 ## Installation
 
-Current release: **[v0.1.4](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.4)**.
-Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64 (**musl static + glibc builds**), and Windows x86_64.
+**Current release:** [v0.1.4](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.4)
 
-**v0.1.4 highlights:** snapshot/benchmark schema **v4**, optional `--enrich` offline hardware catalog (CPU/GPU/memory specs, architecture summaries, simplified HTML diagrams, benchmark reference deltas), and memory module probing (Linux DMI, macOS `system_profiler`). **v0.1.3 highlights:** readable Linux GPU names via `nvidia-smi` and `pci.ids`. **v0.1.2 highlights:** fixes `GLIBC_2.39 not found` on older Linux (Ubuntu 20.04, cloud VPS). Install scripts default to the musl static binary.
+Prebuilt binaries: macOS (Apple Silicon + Intel), Linux x86_64 (musl static + glibc), Windows x86_64.
 
-### Quick pick by platform
+### Release notes
 
-| Platform | Recommended | One-liner |
+**v0.1.4**
+
+- Snapshot and benchmark schema **v4**
+- Optional `--enrich` offline hardware catalog (CPU/GPU/memory specs, architecture summaries, HTML diagrams, benchmark reference deltas)
+- Apple Silicon catalog: **M1–M5** CPU and GPU (exact match on macOS chip names)
+- Memory module probing (Linux DMI, macOS `system_profiler`)
+
+**Earlier releases**
+
+- **v0.1.3** — Readable Linux GPU names (`nvidia-smi`, `pci.ids`)
+- **v0.1.2** — musl static Linux build by default; fixes `GLIBC_* not found` on older distros
+
+### Install by platform
+
+| Platform | Recommended | Command |
 | --- | --- | --- |
-| **macOS** | Homebrew | `brew tap ingeniousfrog/tap && brew install mollow` |
-| **Ubuntu / Debian / cloud VPS** | Ubuntu script (musl) | `curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh \| sudo bash` |
-| **Linux** (other distros) | Install script (musl) | `curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh \| bash` |
-| **Windows** | PowerShell script | `irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 \| iex` |
-| **Any** (developers) | Build from source | `cargo build --release -p mollow` |
+| macOS | Homebrew | `brew tap ingeniousfrog/tap && brew install mollow` |
+| Ubuntu / Debian / VPS | Install script (musl) | `curl -fsSL …/packaging/install-ubuntu.sh \| sudo bash` |
+| Linux (other) | Install script (musl) | `curl -fsSL …/packaging/install.sh \| bash` |
+| Windows | PowerShell | `irm …/packaging/install.ps1 \| iex` |
+| Developers | Source | `cargo build --release -p mollow` |
 
-> **Not available:** `apt install mollow` — Mollow is not in Debian/Ubuntu official repositories.
-> Use the Ubuntu install script, Homebrew on Linux, or a GitHub Release binary instead.
+Full URLs and alternatives (Scoop, winget, manual download, Homebrew on Linux): [docs/packaging.md](docs/packaging.md).
 
-After installation, verify:
+> Mollow is **not** in Debian/Ubuntu official repositories. There is no `apt install mollow`.
 
-```bash
-mollow --version
-mollow inspect --format terminal --lang zh-CN
-```
+### Binary compatibility
 
-### System compatibility
-
-The table below covers **prebuilt binaries and install scripts**. This is separate from [Platform support](#platform-support) later in the doc, which describes what `inspect` can probe on each OS.
-
-#### Prebuilt asset matrix
-
-| Release asset | Architecture | OS requirements | Default in install script? |
+| Asset | Architecture | Requirements | Default in scripts? |
 | --- | --- | --- | --- |
-| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 | **Static musl** — largely independent of system glibc; works on Ubuntu **18.04 / 20.04 / 22.04 / 24.04**, Debian, Alibaba/Tencent Cloud VPS, etc. | ✅ Linux / Ubuntu scripts |
-| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 | Requires **glibc 2.35+** (~ Ubuntu 22.04+); may fail with `GLIBC_* not found` on 18.04 / 20.04 | ❌ Manual download only |
-| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon | macOS 11+ (Big Sur or later) | Homebrew / generic script |
-| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel | macOS 11+ | Homebrew / generic script |
-| `mollow-x86_64-pc-windows-msvc.zip` | Windows x64 | **Windows 10 / 11**, Windows Server 2016+; **PowerShell 5.1+** | ✅ `install.ps1` |
+| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 | Static musl; Ubuntu 18.04–24.04, cloud VPS | Yes |
+| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 | glibc 2.35+ (~ Ubuntu 22.04+) | Manual only |
+| `mollow-aarch64-apple-darwin.tar.gz` | macOS ARM64 | macOS 11+ | Homebrew / script |
+| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel | macOS 11+ | Homebrew / script |
+| `mollow-x86_64-pc-windows-msvc.zip` | Windows x64 | Windows 10+, PowerShell 5.1+ | `install.ps1` |
 
-#### Summary by platform
+Not provided: Linux ARM64, Windows ARM64 prebuilt packages. Build from source for those targets.
 
-| Platform | Support | Main constraints |
+### Upgrade and uninstall
+
+| Method | Upgrade | Uninstall |
 | --- | --- | --- |
-| **Linux** | ✅ Install scripts default to **musl**; works on 18.04 through 24.04 | Prebuilt assets are **x86_64 only**; no Linux ARM64 package; scripts need `curl` and `tar` |
-| **Windows** | ✅ `install.ps1` installs the MSVC binary | **x64 only** (no Windows ARM64 package); **no Linux-style `GLIBC_*` errors**; needs GitHub access |
-| **macOS** | ✅ Homebrew or install script | Packages for Apple Silicon and Intel; the generic Linux script also works on macOS |
+| Homebrew | `brew update && brew upgrade mollow` | `brew uninstall mollow` |
+| Install scripts | Re-run the install script | Remove binary from install dir |
+| Windows PowerShell | Re-run `install.ps1` | Delete `%LOCALAPPDATA%\Programs\Mollow\bin` |
+| Scoop | `scoop update mollow` | `scoop uninstall mollow` |
+| Manual | Replace binary from [Releases](https://github.com/ingeniousfrog/Mollow/releases) | Delete from `PATH` |
+| Source | `git pull && cargo build --release -p mollow` | Remove built binary |
 
-#### FAQ
-
-- **Ubuntu 18.04?** Yes — use the default install script (musl build).
-- **Ubuntu 24.04?** Yes — both musl and gnu assets work; scripts still default to musl.
-- **Does Windows have Ubuntu-style libc limits?** No. Windows constraints are **OS version (Win10+)**, **x64 architecture**, and **PowerShell 5.1+**, not glibc.
-- **Installed the gnu Linux binary by mistake?** Remove the old binary and re-run the script, or force musl: `MOLLOW_LINUX_TARGET=x86_64-unknown-linux-musl` (see [Troubleshooting](#troubleshooting)).
-
-Not provided: Linux ARM64 / Windows ARM64 prebuilt packages, or `apt install mollow`. [Build from source](#build-from-source) for those environments.
-
-### Upgrade & uninstall
-
-Install scripts **do not** auto-update an existing installation; upgrade manually after each release.
-
-#### Upgrade
-
-Homebrew **does not auto-upgrade** when a new release ships. If you installed an older
-version, refresh the tap before upgrading:
-
-```bash
-brew update
-brew upgrade mollow
-mollow --version
-```
-
-Check what Homebrew thinks is installed:
-
-```bash
-brew info ingeniousfrog/tap/mollow
-```
-
-If `mollow --version` is still behind the [latest release](https://github.com/ingeniousfrog/Mollow/releases/latest), reinstall:
-
-```bash
-brew uninstall mollow
-brew update
-brew install ingeniousfrog/tap/mollow
-mollow --version
-```
-
-**Linux / macOS install scripts** — re-run the same install command to overwrite the old binary (scripts default to the latest GitHub release):
-
-```bash
-# Ubuntu / Debian / cloud VPS (system path)
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
-
-# Generic Linux / macOS (user path ~/.local/bin)
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
-```
-
-Pin a version if CDN caching serves an old script:
-
-```bash
-MOLLOW_VERSION=0.1.4 curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
-```
-
-**Windows PowerShell** — re-run `install.ps1`, or `.\install.ps1 -Version 0.1.4` (restart your terminal afterward).
-
-| Install method | Upgrade |
-| --- | --- |
-| **Homebrew** (macOS / Linux) | `brew update && brew upgrade mollow` |
-| **Install scripts** (Linux / macOS) | Re-run the matching install script (see above) |
-| **Windows PowerShell** | Re-run `install.ps1` |
-| **Scoop** | `scoop update mollow` |
-| **Manual download** | Download the new asset from [GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases) and replace the binary on your `PATH` |
-| **Build from source** | `git pull && cargo build --release -p mollow` |
-
-#### Uninstall
-
-| Install method | Uninstall |
-| --- | --- |
-| **Homebrew** | `brew uninstall mollow` |
-| **Linux install script** (system path) | `sudo rm -f /usr/local/bin/mollow` |
-| **Linux / macOS install script** (user path) | `rm -f ~/.local/bin/mollow` |
-| **Windows PowerShell** | Delete `%LOCALAPPDATA%\Programs\Mollow\bin\mollow.exe` and remove that directory from the user `PATH` (Environment Variables → user `Path`) |
-| **Scoop** | `scoop uninstall mollow` |
-| **Manual download** | Delete the `mollow` / `mollow.exe` you added to `PATH` |
-| **Build from source** | Remove `target/release/mollow` (or wherever you copied it) |
-
-After uninstalling, run `which mollow` (Linux / macOS) or `Get-Command mollow` (Windows) to confirm nothing remains on your `PATH`.
+Pin a version: `MOLLOW_VERSION=0.1.4` (scripts) or `.\install.ps1 -Version 0.1.4` (Windows).
 
 ### Troubleshooting
 
-#### Linux: `GLIBC_2.39 not found` (or similar `GLIBC_* not found`)
-
-You likely installed the **glibc-linked** binary on a system with an older glibc (common on Ubuntu 20.04 and cloud VPS images).
-
-1. Remove the old binary: `sudo rm -f /usr/local/bin/mollow ~/.local/bin/mollow`
-2. Reinstall with the **v0.1.2+** script (defaults to the **musl** static build):
+**Linux: `GLIBC_* not found`** — You installed the glibc-linked binary on an older system. Remove the old binary and reinstall with the musl script (default since v0.1.2):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
-mollow --version
-```
-
-If that still fails, [build from source](#build-from-source).
-
----
-
-### macOS
-
-#### Option A — Homebrew (recommended)
-
-Mollow is a CLI **Formula** (not a GUI Cask) in
-[ingeniousfrog/homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap):
-
-```bash
-brew tap ingeniousfrog/tap
-brew install mollow
-```
-
-If Homebrew reports an untrusted tap, run once:
-
-```bash
-brew trust ingeniousfrog/tap
-```
-
-Upgrade / uninstall:
-
-```bash
-brew update          # refresh ingeniousfrog/tap first
-brew upgrade mollow
-brew uninstall mollow  # remove if needed
-```
-
-Supported architectures: Apple Silicon (`aarch64`) and Intel (`x86_64`).
-
-#### Option B — Install script
-
-Downloads the matching release tarball to `~/.local/bin` by default:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
-```
-
-Install system-wide:
-
-```bash
-MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | sudo bash
-```
-
-#### Option C — Manual download
-
-Download `mollow-aarch64-apple-darwin.tar.gz` or `mollow-x86_64-apple-darwin.tar.gz` from
-[GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow`, and place it on your `PATH`.
-
----
-
-### Linux
-
-Mollow is **not** packaged for `apt`, `dnf`, or official distro repos. Use one of the options below.
-
-> See **[System compatibility](#system-compatibility)** above for OS and glibc requirements. Install scripts download the **musl** build by default.
-
-#### Option A — Install script (recommended)
-
-Generic script for Linux x86_64 (and macOS). Default install path: `~/.local/bin`.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | bash
-```
-
-System-wide:
-
-```bash
-MOLLOW_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.sh | sudo bash
-```
-
-#### Option B — Ubuntu / Debian script
-
-Dedicated script for Ubuntu/Debian x86_64. Default install path: `/usr/local/bin`.
-
-```bash
+sudo rm -f /usr/local/bin/mollow ~/.local/bin/mollow
 curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
 ```
 
-User-local install (no `sudo`):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh -o install-ubuntu.sh
-MOLLOW_INSTALL_DIR="$HOME/.local/bin" bash install-ubuntu.sh
-```
-
-Requires `curl` and `tar` (`sudo apt-get install -y curl` if missing).
-
-#### Option C — Homebrew on Linux
-
-```bash
-brew tap ingeniousfrog/tap
-brew install mollow
-```
-
-#### Option D — Manual download
-
-Download `mollow-x86_64-unknown-linux-gnu.tar.gz` (glibc 2.35+) or
-`mollow-x86_64-unknown-linux-musl.tar.gz` (static, older distros) from
-[GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow`, and place it on your `PATH`.
-
----
-
-### Windows
-
-#### Option A — PowerShell install script (recommended)
-
-Installs to `%LOCALAPPDATA%\Programs\Mollow\bin` and adds it to the user `PATH`:
-
-```powershell
-irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 | iex
-```
-
-Pin a specific version:
-
-```powershell
-irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.4
-```
-
-Restart the terminal after installation, then:
-
-```powershell
-mollow --version
-```
-
-#### Option B — Scoop
-
-Manifest template: [`packaging/scoop/mollow.json`](packaging/scoop/mollow.json). Add it to your bucket, then:
-
-```powershell
-scoop install mollow
-```
-
-#### Option C — winget
-
-Manifest template: [`packaging/winget/ingeniousfrog.Mollow.yaml`](packaging/winget/ingeniousfrog.Mollow.yaml).
-Submit or adapt it for [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
-
-#### Option D — Manual download
-
-Download `mollow-x86_64-pc-windows-msvc.zip` from
-[GitHub Releases](https://github.com/ingeniousfrog/Mollow/releases), extract `mollow.exe`, and add its folder to `PATH`.
-
----
-
-### Build from source
-
-Requirements: Rust **1.85+** (`rust-version` in `Cargo.toml`).
-
-```bash
-git clone https://github.com/ingeniousfrog/Mollow.git
-cd Mollow
-cargo build --release -p mollow
-./target/release/mollow --version
-```
-
-Add the binary to your `PATH`, or invoke via `cargo run --release -p mollow --`.
-
-> Use a **release** build for performance baselines. Debug builds run but emit a
-> comparability warning.
-
----
-
-### Release assets and maintainer docs
-
-| Asset | Platform |
-| --- | --- |
-| `mollow-aarch64-apple-darwin.tar.gz` | macOS Apple Silicon |
-| `mollow-x86_64-apple-darwin.tar.gz` | macOS Intel |
-| `mollow-x86_64-unknown-linux-gnu.tar.gz` | Linux x86_64 (glibc 2.35+) |
-| `mollow-x86_64-unknown-linux-musl.tar.gz` | Linux x86_64 (static musl, older distros) |
-| `mollow-x86_64-pc-windows-msvc.zip` | Windows x86_64 |
-
-Publishing a new version: push a `v*` tag (see [`.github/workflows/release.yml`](.github/workflows/release.yml)). After the release finishes, [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) is updated automatically when `HOMEBREW_TAP_TOKEN` is configured (see [docs/homebrew.md](docs/homebrew.md)). Scoop / winget checksums still need a manual refresh:
-
-```bash
-./packaging/update-package-checksums.sh <version>
-```
-
-Manual Homebrew tap fallback:
-
-```bash
-./packaging/update-homebrew-sha256.sh <version>
-./packaging/push-homebrew-tap.sh
-```
-
-Further details:
-
-| Document | Topic |
-| --- | --- |
-| [docs/packaging.md](docs/packaging.md) | All install paths, Scoop, winget |
-| [docs/homebrew.md](docs/homebrew.md) | Homebrew Formula maintainer workflow |
+Or force musl: `MOLLOW_LINUX_TARGET=x86_64-unknown-linux-musl`.
 
 ---
 
@@ -477,258 +223,130 @@ Further details:
 
 ### Shared flags
 
-Most commands accept:
-
 | Flag | Values | Default | Description |
 | --- | --- | --- | --- |
-| `--format` | `terminal`, `json`, `markdown`, `html` | see per-command | Output format |
-| `--lang` | `english`, `zh-CN` | `english` | Report language (terminal / markdown / html) |
-| `--output <PATH>` | file path | stdout | Write result to file instead of stdout |
+| `--format` | `terminal`, `json`, `markdown`, `html` | per command | Output format |
+| `--lang` | `english`, `zh-CN` | `english` | Report language |
+| `--output <PATH>` | file path | stdout | Write to file |
 
-Benchmark-related commands also accept:
-
-| Flag | Values | Default | Description |
-| --- | --- | --- | --- |
-| `--profile` | `quick`, `standard` | `quick` | Sample count and input sizes ([details](docs/benchmarks.md)) |
-
----
+Benchmark commands also accept `--profile quick|standard` ([details](docs/benchmarks.md)).
 
 ### `mollow inspect`
 
-Collect a **machine snapshot only** (no benchmarks).
-
-```bash
-mollow inspect [OPTIONS]
-```
+Collect a machine snapshot (no benchmarks).
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--format` | `terminal` | `terminal` · `json` · `markdown` · `html` |
-| `--lang` | `english` | `english` · `zh-CN` |
-| `--enrich` | — | Look up the offline hardware catalog (specs, architecture summary, benchmark reference) |
-| `--output` | — | Save rendered output to a file |
-
-**Examples**
+| `--format` | `terminal` | Output format |
+| `--enrich` | off | Attach offline hardware catalog |
+| `--output` | — | Save rendered output |
 
 ```bash
-# Human-readable summary (Chinese labels)
-mollow inspect --format terminal --lang zh-CN
-
-# Machine-readable snapshot for tooling
 mollow inspect --format json --output snapshot.json
-
-# Shareable HTML report
-mollow inspect --format html --lang english --output inspect.html
-
-# Offline hardware catalog enrichment
-mollow inspect --enrich --format terminal --lang zh-CN
+mollow inspect --enrich --format html --lang zh-CN --output inspect.html
 ```
-
-See [docs/hardware-enrichment.md](docs/hardware-enrichment.md).
-
----
 
 ### `mollow bench`
 
-Run benchmark workloads **without** saving a combined capture file (stdout or `--output`).
-
-```bash
-mollow bench [OPTIONS]
-```
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `--profile` | `quick` | `quick` (3 samples) · `standard` (5 samples) |
-| `--format` | `terminal` | Output format |
-| `--lang` | `english` | Report language |
-| `--output` | — | Output file path |
-
-**Examples**
+Run benchmarks without a combined capture file.
 
 ```bash
 mollow bench --profile quick --format terminal
-mollow bench --profile standard --format json --output bench-standard.json
+mollow bench --profile standard --format json --output bench.json
 ```
-
----
 
 ### `mollow capture`
 
-Snapshot **plus** benchmark in a **single JSON artifact** (recommended for baselines).
-
-```bash
-mollow capture [OPTIONS]
-```
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `--profile` | `quick` | Benchmark profile |
-| `--format` | `json` | Default is JSON for archival; use `terminal` for a quick read |
-| `--lang` | `english` | Report language |
-| `--enrich` | — | Attach offline hardware catalog context (includes benchmark reference deltas) |
-| `--output` | — | **Strongly recommended** — baseline file path |
-
-**Examples**
+Snapshot **and** benchmark in one JSON artifact (recommended for baselines).
 
 ```bash
 mollow capture --profile quick --output baseline.json
-mollow capture --profile standard --format json --output release-baseline.json
+mollow capture --enrich --profile standard --output release-baseline.json
 ```
-
----
 
 ### `mollow compare`
 
-Diff a **baseline** against one or more **candidates**.
-
-Accepts:
-
-- **Benchmark runs** (`started_at_unix_ms` present) → workload regression/improvement
-- **Snapshots only** (`captured_at_unix_ms` only) → machine field changes, no workload deltas
-
-```bash
-mollow compare [OPTIONS] <BASELINE> <CANDIDATE> [MORE_CANDIDATES...]
-```
-
-| Argument / option | Description |
-| --- | --- |
-| `<BASELINE>` | Reference JSON file |
-| `<CANDIDATE>` | File to compare against baseline |
-| `[MORE_CANDIDATES...]` | Optional additional candidates in one invocation |
-| `--format` | Default `terminal` |
-| `--lang` | Report language |
-| `--output` | Write comparison report to file |
-
-**Examples**
+Diff baseline against one or more candidates (benchmark runs or snapshots).
 
 ```bash
 mollow compare baseline.json candidate.json
 mollow compare baseline.json run-a.json run-b.json --format markdown -o diff.md
-mollow compare old-snapshot.json new-snapshot.json --lang zh-CN
 ```
 
-**Comparability (summary)** — a benchmark diff is marked **not comparable** when schema,
-profile, release build, workload parameters, or **environment** (power source, battery,
-low-power mode, thermal warning/critical) differ. See [docs/comparison.md](docs/comparison.md).
-
-Median workload change uses a **±5%** threshold (500 basis points) for
-regression / improvement / stable classification.
-
----
+Benchmark diffs require matching schema, profile, release build, workload parameters, and environment (power, thermal). Median change threshold: **±5%** (500 basis points). See [docs/comparison.md](docs/comparison.md).
 
 ### `mollow report`
 
-Re-render any saved Mollow JSON (snapshot, benchmark, or comparison) to another format.
-
-```bash
-mollow report [OPTIONS] <INPUT>
-```
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `<INPUT>` | — | `.json` file (auto-detected document type) |
-| `--format` | `terminal` | Output format |
-| `--lang` | `english` | Report language |
-| `--output` | — | Output file (required for `html` when piping) |
-
-**Examples**
+Re-render saved JSON to another format.
 
 ```bash
 mollow report baseline.json --format html --output report.html
-mollow report comparison.json --format markdown --lang zh-CN
 ```
-
----
 
 ### `mollow watch`
 
-Monitor **memory**, **power**, and **thermal** readings at a fixed interval (similar in
-spirit to `gpustat -i 1`, but for environment state rather than GPU utilization).
-
-```bash
-mollow watch [OPTIONS]
-```
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `-i`, `--interval` | `1` | Refresh interval in seconds |
-| `--fields` | `memory,power,thermal` | Comma-separated fields to show |
-| `--lang` | `english` | Report language |
-| `--count` | — | Stop after N refresh cycles |
-
-**Examples**
+Monitor memory, power, and thermal at a fixed interval.
 
 ```bash
 mollow watch -i 1
 mollow watch -i 5 --fields power,thermal --lang zh-CN
 ```
 
-Battery power and thermal warning/critical states are highlighted in the terminal.
-
----
-
 ### `mollow archive`
 
-Manage a **local directory** of benchmark JSON files (index + trends).
-
-#### `archive add`
-
-```bash
-mollow archive add --dir <ARCHIVE_DIR> <BENCHMARK.json>
-```
-
-Copies metadata into the archive index. Input must be a benchmark run (e.g. from `capture`).
-
-#### `archive list`
-
-```bash
-mollow archive list --dir <ARCHIVE_DIR> [--format terminal|json|markdown|html] [--lang english|zh-CN]
-```
-
-#### `archive trend`
-
-```bash
-mollow archive trend --dir <ARCHIVE_DIR> --workload <NAME> [--format ...] [--lang ...]
-```
-
-`--workload` is one of: `cpu`, `memory`, `storage`, `gpu`, `media` (default: `cpu`).
-
-**Examples**
+Local baseline directory: `archive add`, `archive list`, `archive trend --workload cpu|memory|storage|gpu|media`.
 
 ```bash
 mkdir -p ~/.mollow/archive
-mollow capture --profile quick -o run-2025-06-19.json
-mollow archive add --dir ~/.mollow/archive run-2025-06-19.json
-mollow archive list --dir ~/.mollow/archive --format markdown
-mollow archive trend --dir ~/.mollow/archive --workload gpu --lang zh-CN
+mollow capture --profile quick -o run.json
+mollow archive add --dir ~/.mollow/archive run.json
+mollow archive trend --dir ~/.mollow/archive --workload gpu
 ```
 
 ---
 
-## Benchmark profiles
+## Data model
+
+### Snapshot schema (v4)
+
+| Component | Examples |
+| --- | --- |
+| `system` | OS, kernel, architecture, hostname |
+| `cpu` | Model, cores, ISA features |
+| `memory` | Total/available RAM, swap, per-module type/speed |
+| `storage` | Mount points, volume size, filesystem |
+| `gpu` | Device name, vendor, APIs |
+| `media` | Hardware codec capabilities |
+| `power` / `thermal` | AC/battery, charge, thermal state |
+| `runtimes` | rustc, cargo, git, node, python (when present) |
+| `hardware_context` | Optional catalog enrichment (`--enrich`) |
+
+Schema: [`schemas/machine-snapshot-v4.schema.json`](schemas/machine-snapshot-v4.schema.json)
+
+### Benchmark workloads (v2)
+
+| Domain | Workload ID | Backend |
+| --- | --- | --- |
+| CPU | `cpu.fnv1a-stream` | Host FNV-1a hash |
+| Memory | `memory.sequential-copy` | Sequential `copy_from_slice` |
+| Storage | `storage.sequential-write-read` | Temp file write/sync/read |
+| GPU | `gpu.wgpu-matrix-multiply` | wgpu (Metal / Vulkan / DX12) |
+| Media (macOS) | `media.videotoolbox-h264-encode` | VideoToolbox |
+| Media (Windows) | `media.media-foundation-h264-decode` | Media Foundation |
+| Media (Linux) | `media.vaapi-h264-decode` | VA-API |
+
+### Benchmark profiles
 
 | Profile | Samples | CPU input | Memory buffer | Storage file | Use case |
 | --- | ---: | ---: | ---: | ---: | --- |
-| `quick` | 3 | 4 MiB | 16 MiB | 8 MiB | Frequent local checks, CI smoke |
-| `standard` | 5 | 32 MiB | 64 MiB | 64 MiB | Release baselines, archival |
+| `quick` | 3 | 4 MiB | 16 MiB | 8 MiB | CI smoke, frequent checks |
+| `standard` | 5 | 32 MiB | 64 MiB | 64 MiB | Release baselines |
 
-Full warmup counts, statistics (median + MAD), and storage safety: [docs/benchmarks.md](docs/benchmarks.md).
+Full parameters: [docs/benchmarks.md](docs/benchmarks.md)
 
----
+### Schema versions
 
-## Platform support
-
-| Platform | System / CPU / memory / storage | GPU | Media | Power | Thermal |
-| --- | --- | --- | --- | --- | --- |
-| macOS | Native APIs, sysctl | `system_profiler` | VideoToolbox | IOKit | SMC / thermal |
-| Linux | `/proc`, sysfs | DRM sysfs, nvidia-smi, pci.ids | VA-API / V4L2 | power-supply | thermal zones |
-| Windows | Win32 / NT | DXGI | Media Foundation | Win32 power | WMI |
-
----
-
-## Schema versions
-
-| Artifact | Schema | Path |
+| Artifact | Version | Path |
 | --- | --- | --- |
 | Machine snapshot | v4.0.0 | `schemas/machine-snapshot-v4.schema.json` |
 | Benchmark run | v4.0.0 | `schemas/benchmark-run-v4.schema.json` |
@@ -736,24 +354,53 @@ Full warmup counts, statistics (median + MAD), and storage safety: [docs/benchma
 
 ---
 
+## Platform probing
+
+What `inspect` can collect on each OS (separate from [binary compatibility](#binary-compatibility)):
+
+| Platform | System / CPU / memory / storage | GPU | Media | Power | Thermal |
+| --- | --- | --- | --- | --- | --- |
+| macOS | Native APIs, sysctl | `system_profiler` | VideoToolbox | IOKit | SMC |
+| Linux | `/proc`, sysfs | DRM, nvidia-smi, pci.ids | VA-API / V4L2 | power-supply | thermal zones |
+| Windows | Win32 / NT | DXGI | Media Foundation | Win32 | WMI |
+
+---
+
 ## Development
+
+Requires Rust **1.85+** (`rust-version` in `Cargo.toml`).
 
 ```bash
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo test --workspace --release
+cargo build --release -p mollow
 ```
+
+Use **release** builds for performance baselines.
+
+### Documentation
 
 | Document | Topic |
 | --- | --- |
-| [docs/hardware-enrichment.md](docs/hardware-enrichment.md) | Offline catalog, `--enrich`, schema v4 `hardware_context` |
 | [docs/architecture.md](docs/architecture.md) | Crate boundaries, capability semantics |
+| [docs/hardware-enrichment.md](docs/hardware-enrichment.md) | Offline catalog, `--enrich` |
 | [docs/benchmarks.md](docs/benchmarks.md) | Workloads, profiles, statistics |
-| [docs/comparison.md](docs/comparison.md) | Comparability and strict environment rules |
+| [docs/comparison.md](docs/comparison.md) | Comparability rules |
+| [docs/packaging.md](docs/packaging.md) | Install paths, Scoop, winget |
+| [docs/homebrew.md](docs/homebrew.md) | Homebrew Formula workflow |
 | [docs/release-verification.md](docs/release-verification.md) | Pre-release checklist |
-| [docs/homebrew.md](docs/homebrew.md) | Formula packaging |
-| [docs/packaging.md](docs/packaging.md) | Cross-platform install, Scoop, winget |
+
+### Releasing (maintainers)
+
+Push a `v*` tag → [`.github/workflows/release.yml`](.github/workflows/release.yml) builds assets and publishes the GitHub Release. [homebrew-tap](https://github.com/ingeniousfrog/homebrew-tap) updates automatically when `HOMEBREW_TAP_TOKEN` is set.
+
+After release, refresh packaging checksums:
+
+```bash
+./packaging/update-homebrew-sha256.sh <version>
+./packaging/update-package-checksums.sh <version>   # when placeholders are used
+```
 
 ---
 
