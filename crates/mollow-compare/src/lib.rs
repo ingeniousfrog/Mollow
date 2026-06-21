@@ -410,14 +410,18 @@ fn hardware_cpu_summary(snapshot: &MachineSnapshot) -> Option<String> {
 }
 
 fn hardware_gpu_summary(snapshot: &MachineSnapshot) -> Option<String> {
-    snapshot.hardware_context.value.as_ref().and_then(|context| {
-        context.gpu.value.as_ref().map(|gpus| {
-            gpus.iter()
-                .map(|gpu| gpu.matched_model.clone())
-                .collect::<Vec<_>>()
-                .join("; ")
+    snapshot
+        .hardware_context
+        .value
+        .as_ref()
+        .and_then(|context| {
+            context.gpu.value.as_ref().map(|gpus| {
+                gpus.iter()
+                    .map(|gpu| gpu.matched_model.clone())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            })
         })
-    })
 }
 
 fn hardware_memory_summary(snapshot: &MachineSnapshot) -> Option<String> {

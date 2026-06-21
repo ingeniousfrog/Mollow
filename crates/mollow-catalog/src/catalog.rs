@@ -1,7 +1,6 @@
 use mollow_core::{
-    BenchmarkReferenceMatch, Capability, CpuCatalogMatch, DataSource, GpuCatalogMatch,
-    GpuInfo, HardwareContext, MatchConfidence, MemoryCatalogMatch, MemoryModuleInfo,
-    WorkloadResult,
+    BenchmarkReferenceMatch, Capability, CpuCatalogMatch, DataSource, GpuCatalogMatch, GpuInfo,
+    HardwareContext, MatchConfidence, MemoryCatalogMatch, MemoryModuleInfo, WorkloadResult,
 };
 use serde::Deserialize;
 
@@ -91,8 +90,7 @@ impl std::fmt::Display for CatalogError {
 impl std::error::Error for CatalogError {}
 
 fn load_catalog() -> Result<HardwareCatalog, CatalogError> {
-    serde_json::from_str(EMBEDDED_CATALOG)
-        .map_err(|error| CatalogError::Parse(error.to_string()))
+    serde_json::from_str(EMBEDDED_CATALOG).map_err(|error| CatalogError::Parse(error.to_string()))
 }
 
 fn catalog_source() -> DataSource {
@@ -261,9 +259,11 @@ fn lookup_memory(
 
     for key in &search_keys {
         let normalized = normalize_model(key);
-        if let Some(entry) = catalog.memory_profiles.iter().find(|entry| {
-            entry_match(&normalized, &entry.match_patterns)
-        }) {
+        if let Some(entry) = catalog
+            .memory_profiles
+            .iter()
+            .find(|entry| entry_match(&normalized, &entry.match_patterns))
+        {
             return Capability::available(
                 MemoryCatalogMatch {
                     matched_profile: format!(
@@ -290,9 +290,11 @@ fn lookup_memory(
             .as_deref()
             .is_some_and(|value| value.contains("LPDDR"))
     }) {
-        if let Some(entry) = catalog.memory_profiles.iter().find(|entry| {
-            entry.memory_type.as_deref() == Some("LPDDR5")
-        }) {
+        if let Some(entry) = catalog
+            .memory_profiles
+            .iter()
+            .find(|entry| entry.memory_type.as_deref() == Some("LPDDR5"))
+        {
             return Capability::available(
                 MemoryCatalogMatch {
                     matched_profile: "LPDDR5-unified".to_owned(),
@@ -381,7 +383,10 @@ fn entry_match(normalized: &str, patterns: &[String]) -> bool {
 }
 
 fn match_confidence(normalized: &str, patterns: &[String]) -> MatchConfidence {
-    if patterns.iter().any(|pattern| normalized == normalize_model(pattern)) {
+    if patterns
+        .iter()
+        .any(|pattern| normalized == normalize_model(pattern))
+    {
         MatchConfidence::Exact
     } else if patterns
         .iter()

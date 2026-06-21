@@ -1127,7 +1127,9 @@ fn append_cpu_catalog_match(
         output,
         prefix,
         title(language, "Reference score", "参考分数"),
-        cpu.reference_score.map(|score| score.to_string()).as_deref(),
+        cpu.reference_score
+            .map(|score| score.to_string())
+            .as_deref(),
     );
 }
 
@@ -1254,18 +1256,22 @@ fn render_hardware_context_diagrams(
     let context = snapshot.hardware_context.value.as_ref()?;
     let mut html = format!(
         "<h2>{}</h2>\n",
-        escape_html(title(
-            language,
-            "Architecture diagrams",
-            "架构示意图",
-        ))
+        escape_html(title(language, "Architecture diagrams", "架构示意图",))
     );
     if let Some(cpu) = context.cpu.value.as_ref() {
-        append_diagram_html(&mut html, cpu.diagram_template.as_deref(), &cpu.matched_model);
+        append_diagram_html(
+            &mut html,
+            cpu.diagram_template.as_deref(),
+            &cpu.matched_model,
+        );
     }
     if let Some(gpus) = context.gpu.value.as_ref() {
         for gpu in gpus {
-            append_diagram_html(&mut html, gpu.diagram_template.as_deref(), &gpu.matched_model);
+            append_diagram_html(
+                &mut html,
+                gpu.diagram_template.as_deref(),
+                &gpu.matched_model,
+            );
         }
     }
     if let Some(memory) = context.memory.value.as_ref() {

@@ -10,11 +10,11 @@ use mollow_core::{
 };
 
 #[cfg(target_os = "linux")]
+use crate::linux_dmi;
+#[cfg(target_os = "linux")]
 use crate::linux_gpu;
 #[cfg(target_os = "linux")]
 use crate::linux_media::{v4l2_codecs, vaapi_codecs};
-#[cfg(target_os = "linux")]
-use crate::linux_dmi;
 use crate::linux_parse::{parse_cpuinfo, parse_meminfo, parse_mountinfo, parse_os_release};
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
 

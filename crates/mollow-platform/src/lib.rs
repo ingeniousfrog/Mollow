@@ -12,8 +12,8 @@ mod runtimes;
 
 use mollow_core::{
     Capability, CpuInfo, DataSource, GpuInfo, HardwareContext, MachineSnapshot, MediaInfo,
-    MemoryInfo, PowerInfo, RuntimeInfo, SCHEMA_VERSION, StorageVolume,
-    SystemInfo, ThermalInfo, WatchReading,
+    MemoryInfo, PowerInfo, RuntimeInfo, SCHEMA_VERSION, StorageVolume, SystemInfo, ThermalInfo,
+    WatchReading,
 };
 
 pub use native::NativeProbe;
@@ -187,7 +187,11 @@ fn enrich_snapshot(
     snapshot: &MachineSnapshot,
     options: SnapshotOptions,
 ) -> Capability<HardwareContext> {
-    let cpu_model = snapshot.cpu.value.as_ref().and_then(|cpu| cpu.model.as_deref());
+    let cpu_model = snapshot
+        .cpu
+        .value
+        .as_ref()
+        .and_then(|cpu| cpu.model.as_deref());
     let gpu_names = snapshot.gpu.value.as_deref().unwrap_or_default();
     let memory_modules = snapshot
         .memory

@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use clap::{Parser, Subcommand, ValueEnum};
 use mollow_core::{BenchmarkProfile, BenchmarkRun, ComparisonReport, MachineSnapshot, WatchField};
 use mollow_platform::{
-    collect_snapshot_with_options, collect_watch_reading, native_probe, SnapshotOptions,
+    SnapshotOptions, collect_snapshot_with_options, collect_watch_reading, native_probe,
 };
 use mollow_report::{ReportFormat, ReportLanguage};
 use serde::de::DeserializeOwned;
@@ -32,7 +32,10 @@ enum Command {
         format: OutputFormat,
         #[arg(long, value_enum, default_value_t = Language::English)]
         lang: Language,
-        #[arg(long, help = "Look up offline hardware catalog specs and benchmark references")]
+        #[arg(
+            long,
+            help = "Look up offline hardware catalog specs and benchmark references"
+        )]
         enrich: bool,
         #[arg(long)]
         output: Option<PathBuf>,
@@ -56,7 +59,10 @@ enum Command {
         format: OutputFormat,
         #[arg(long, value_enum, default_value_t = Language::English)]
         lang: Language,
-        #[arg(long, help = "Look up offline hardware catalog specs and benchmark references")]
+        #[arg(
+            long,
+            help = "Look up offline hardware catalog specs and benchmark references"
+        )]
         enrich: bool,
         #[arg(long)]
         output: Option<PathBuf>,

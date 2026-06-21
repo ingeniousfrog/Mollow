@@ -245,7 +245,10 @@ impl PlatformProbe for NativeProbe {
     fn source(&self, area: ProbeArea) -> DataSource {
         let (provider, detail) = match area {
             ProbeArea::System | ProbeArea::Cpu => ("macos-sysctl", "sysctlbyname FFI"),
-            ProbeArea::Memory => ("macos-memory", "sysctlbyname, Mach host statistics, system_profiler"),
+            ProbeArea::Memory => (
+                "macos-memory",
+                "sysctlbyname, Mach host statistics, system_profiler",
+            ),
             ProbeArea::Storage => ("macos-storage", "getmntinfo"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
             ProbeArea::Gpu => ("macos-gpu", "system_profiler JSON"),
@@ -326,21 +329,18 @@ fn clean_system_profiler_value(value: &str) -> String {
 }
 
 fn memory_modules_capability(probe: &NativeProbe) -> Capability<Vec<MemoryModuleInfo>> {
-    run_command(
-        "/usr/sbin/system_profiler",
-        &["-json", "SPMemoryDataType"],
-    )
-    .and_then(|output| parse_memory_json(&output))
-    .map_or_else(
-        |error| Capability::unavailable(error.to_string()),
-        |modules| {
-            if modules.is_empty() {
-                Capability::unavailable("system_profiler returned no memory modules")
-            } else {
-                Capability::available(modules, probe.source(ProbeArea::Memory))
-            }
-        },
-    )
+    run_command("/usr/sbin/system_profiler", &["-json", "SPMemoryDataType"])
+        .and_then(|output| parse_memory_json(&output))
+        .map_or_else(
+            |error| Capability::unavailable(error.to_string()),
+            |modules| {
+                if modules.is_empty() {
+                    Capability::unavailable("system_profiler returned no memory modules")
+                } else {
+                    Capability::available(modules, probe.source(ProbeArea::Memory))
+                }
+            },
+        )
 }
 
 fn parse_memory_json(input: &str) -> io::Result<Vec<MemoryModuleInfo>> {
