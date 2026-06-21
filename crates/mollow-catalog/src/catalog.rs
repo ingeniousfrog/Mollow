@@ -200,28 +200,6 @@ fn lookup_gpus(catalog: &HardwareCatalog, gpus: &[GpuInfo]) -> Capability<Vec<Gp
                 diagram_template: entry.diagram_template.clone(),
                 reference_score: entry.gpu_reference_score,
             });
-        } else if normalized.contains("apple") && normalized.contains('m') {
-            if let Some(entry) = catalog
-                .gpus
-                .iter()
-                .find(|entry| entry.canonical_model == "Apple M1 GPU")
-            {
-                matches.push(GpuCatalogMatch {
-                    matched_model: entry.canonical_model.clone(),
-                    confidence: MatchConfidence::Fuzzy,
-                    codename: entry.codename.clone(),
-                    architecture_family: entry.architecture_family.clone(),
-                    architecture_summary: entry.architecture_summary.clone(),
-                    process_nm: entry.process_nm,
-                    shader_units: entry.shader_units,
-                    memory_type: entry.memory_type.clone(),
-                    memory_bus_bits: entry.memory_bus_bits,
-                    tdp_watts: entry.tdp_watts,
-                    reference_urls: entry.reference_urls.clone(),
-                    diagram_template: entry.diagram_template.clone(),
-                    reference_score: entry.gpu_reference_score,
-                });
-            }
         }
     }
 
@@ -563,6 +541,31 @@ mod tests {
     fn render_diagram_returns_svg_for_known_template() {
         let svg = render_diagram("hybrid_cpu", "Hybrid CPU").expect("template should exist");
         assert!(svg.contains("<svg"));
+    }
+
+    #[test]
+    fn enrich_matches_apple_silicon_gpu_by_chip_name() {
+        let gpu = GpuInfo {
+            name: "Apple M2".to_owned(),
+            vendor: Some("Apple".to_owned()),
+            driver_version: None,
+            memory_bytes: None,
+            apis: vec!["Metal".to_owned()],
+        };
+        let context = enrich(EnrichmentInput {
+            cpu_model: None,
+            gpu_names: &[gpu],
+            memory_modules: None,
+            cpu_workload: None,
+            gpu_workload: None,
+        })
+        .expect("catalog should parse")
+        .value
+        .expect("gpu should match");
+
+        let gpu_match = &context.gpu.value.unwrap()[0];
+        assert_eq!(gpu_match.matched_model, "Apple M2 GPU");
+        assert_eq!(gpu_match.confidence, MatchConfidence::Exact);
     }
 
     #[test]

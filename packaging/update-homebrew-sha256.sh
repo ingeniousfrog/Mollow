@@ -12,7 +12,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fetch_sha256() {
   local asset="$1"
   local url="${BASE}/${asset}"
-  echo "Fetching sha256 for ${asset}..."
+  echo "Fetching sha256 for ${asset}..." >&2
   curl -fsSL "${url}" | shasum -a 256 | awk '{print $1}'
 }
 
