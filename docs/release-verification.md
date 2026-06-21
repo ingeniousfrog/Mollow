@@ -15,7 +15,7 @@ cargo audit
 ## macOS
 
 ```bash
-cargo run --release -p mollow -- inspect --format json --lang zh-CN
+cargo run --release -p mollow -- inspect --enrich --format json --lang zh-CN
 cargo run --release -p mollow -- watch -i 1 --count 1
 cargo run --release -p mollow -- bench --profile quick --format json
 cargo run --release -p mollow -- capture --output /tmp/mollow-baseline.json
@@ -27,8 +27,10 @@ cargo run -p mollow -- archive list --dir /tmp/mollow-archive
 
 Confirm:
 
-- Snapshot schema version is `3.0.0`.
-- Benchmark schema version is `3.0.0`.
+- Snapshot schema version is `4.0.0`.
+- Benchmark schema version is `4.0.0`.
+- `hardware_context` is `available` when `--enrich` matches catalog entries, or explicitly
+  `unavailable` / `unsupported` with a message.
 - GPU, media, power, and thermal sections are `available` or explicitly
   `unsupported` / `unavailable` with a message.
 - HTML report renders semantic sections, not only a single escaped text block.

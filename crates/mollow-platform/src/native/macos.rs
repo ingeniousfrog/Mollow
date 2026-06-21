@@ -6,8 +6,8 @@ use std::ptr;
 use std::slice;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, PowerInfo, RuntimeInfo,
-    StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, MemoryModuleInfo, PowerInfo,
+    RuntimeInfo, StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
@@ -146,6 +146,7 @@ impl PlatformProbe for NativeProbe {
             total_bytes,
             available_bytes: Some(available_bytes.min(total_bytes)),
             swap,
+            modules: memory_modules_capability(self),
         })
     }
 
@@ -244,7 +245,7 @@ impl PlatformProbe for NativeProbe {
     fn source(&self, area: ProbeArea) -> DataSource {
         let (provider, detail) = match area {
             ProbeArea::System | ProbeArea::Cpu => ("macos-sysctl", "sysctlbyname FFI"),
-            ProbeArea::Memory => ("macos-memory", "sysctlbyname and Mach host statistics"),
+            ProbeArea::Memory => ("macos-memory", "sysctlbyname, Mach host statistics, system_profiler"),
             ProbeArea::Storage => ("macos-storage", "getmntinfo"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
             ProbeArea::Gpu => ("macos-gpu", "system_profiler JSON"),
@@ -322,6 +323,104 @@ fn clean_system_profiler_value(value: &str) -> String {
         .strip_prefix("sppci_vendor_")
         .unwrap_or(value)
         .to_owned()
+}
+
+fn memory_modules_capability(probe: &NativeProbe) -> Capability<Vec<MemoryModuleInfo>> {
+    run_command(
+        "/usr/sbin/system_profiler",
+        &["-json", "SPMemoryDataType"],
+    )
+    .and_then(|output| parse_memory_json(&output))
+    .map_or_else(
+        |error| Capability::unavailable(error.to_string()),
+        |modules| {
+            if modules.is_empty() {
+                Capability::unavailable("system_profiler returned no memory modules")
+            } else {
+                Capability::available(modules, probe.source(ProbeArea::Memory))
+            }
+        },
+    )
+}
+
+fn parse_memory_json(input: &str) -> io::Result<Vec<MemoryModuleInfo>> {
+    let value: serde_json::Value = serde_json::from_str(input)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let entries = value
+        .get("SPMemoryDataType")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "missing SPMemoryDataType"))?;
+
+    let mut modules = Vec::new();
+    for entry in entries {
+        if let Some(module) = parse_memory_entry(entry) {
+            modules.push(module);
+        }
+        if let Some(nested) = entry.get("_items").and_then(serde_json::Value::as_array) {
+            for item in nested {
+                if let Some(module) = parse_memory_entry(item) {
+                    modules.push(module);
+                }
+            }
+        }
+    }
+    Ok(modules)
+}
+
+fn parse_memory_entry(entry: &serde_json::Value) -> Option<MemoryModuleInfo> {
+    let slot = entry
+        .get("_name")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    let mem_type = entry
+        .get("dimm_type")
+        .or_else(|| entry.get("type"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    let speed_mts = entry
+        .get("dimm_speed")
+        .or_else(|| entry.get("speed"))
+        .and_then(serde_json::Value::as_str)
+        .and_then(parse_speed_mts);
+    let size_bytes = entry
+        .get("dimm_size")
+        .or_else(|| entry.get("size"))
+        .and_then(serde_json::Value::as_str)
+        .and_then(parse_memory_size_bytes);
+    if mem_type.is_none() && speed_mts.is_none() && size_bytes.is_none() {
+        return None;
+    }
+    Some(MemoryModuleInfo {
+        slot,
+        mem_type,
+        speed_mts,
+        size_bytes,
+        manufacturer: entry
+            .get("dimm_manufacturer")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+    })
+}
+
+fn parse_speed_mts(input: &str) -> Option<u32> {
+    input
+        .split_whitespace()
+        .next()
+        .and_then(|value| value.parse::<u32>().ok())
+}
+
+fn parse_memory_size_bytes(input: &str) -> Option<u64> {
+    let mut parts = input.split_whitespace();
+    let amount = parts.next()?.parse::<f64>().ok()?;
+    let unit = parts.next().unwrap_or("GB");
+    let multiplier = match unit.to_ascii_uppercase().as_str() {
+        "KB" => 1_024.0,
+        "MB" => 1_024.0 * 1_024.0,
+        "GB" => 1_024.0 * 1_024.0 * 1_024.0,
+        "TB" => 1_024.0 * 1_024.0 * 1_024.0 * 1_024.0,
+        _ => return None,
+    };
+    Some((amount * multiplier) as u64)
 }
 
 fn parse_pmset_battery(input: &str) -> PowerInfo {

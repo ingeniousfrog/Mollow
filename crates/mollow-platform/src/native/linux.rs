@@ -5,14 +5,16 @@ use std::mem::MaybeUninit;
 use std::path::Path;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, PowerInfo, RuntimeInfo,
-    StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, MemoryModuleInfo, PowerInfo,
+    RuntimeInfo, StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
 #[cfg(target_os = "linux")]
 use crate::linux_gpu;
 #[cfg(target_os = "linux")]
 use crate::linux_media::{v4l2_codecs, vaapi_codecs};
+#[cfg(target_os = "linux")]
+use crate::linux_dmi;
 use crate::linux_parse::{parse_cpuinfo, parse_meminfo, parse_mountinfo, parse_os_release};
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
 
@@ -66,6 +68,7 @@ impl PlatformProbe for NativeProbe {
                 },
                 self.source(ProbeArea::Memory),
             ),
+            modules: memory_modules_capability(self),
         })
     }
 
@@ -158,7 +161,7 @@ impl PlatformProbe for NativeProbe {
         let (provider, detail) = match area {
             ProbeArea::System => ("linux-system", "/etc/os-release and uname"),
             ProbeArea::Cpu => ("linux-cpu", "/proc/cpuinfo"),
-            ProbeArea::Memory => ("linux-memory", "/proc/meminfo"),
+            ProbeArea::Memory => ("linux-memory", "/proc/meminfo and DMI type 17"),
             ProbeArea::Storage => ("linux-storage", "/proc/self/mountinfo and statvfs"),
             ProbeArea::Runtimes => ("runtime-commands", "fixed version commands without a shell"),
             ProbeArea::Gpu => ("linux-gpu", "DRM sysfs, nvidia-smi, pci.ids"),
@@ -172,6 +175,20 @@ impl PlatformProbe for NativeProbe {
             detail: Some(detail.to_owned()),
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+fn memory_modules_capability(probe: &NativeProbe) -> Capability<Vec<MemoryModuleInfo>> {
+    match linux_dmi::read_memory_modules() {
+        Ok(modules) => Capability::available(modules, probe.source(ProbeArea::Memory)),
+        Err(message) if message.contains("unavailable") => Capability::unavailable(message),
+        Err(message) => Capability::error(message),
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn memory_modules_capability(_probe: &NativeProbe) -> Capability<Vec<MemoryModuleInfo>> {
+    Capability::unsupported("memory module details are not implemented for this platform")
 }
 
 fn linux_power() -> io::Result<PowerInfo> {

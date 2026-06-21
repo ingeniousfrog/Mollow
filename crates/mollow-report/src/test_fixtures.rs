@@ -37,6 +37,7 @@ pub(crate) fn fixture_snapshot(hostname: &str) -> MachineSnapshot {
                 total_bytes: 8 * 1024 * 1024 * 1024,
                 available_bytes: Some(4 * 1024 * 1024 * 1024),
                 swap: Capability::unsupported("fixture"),
+                modules: Capability::unsupported("fixture"),
             },
             source,
         ),
@@ -46,6 +47,7 @@ pub(crate) fn fixture_snapshot(hostname: &str) -> MachineSnapshot {
         power: Capability::unsupported("fixture"),
         thermal: Capability::unsupported("fixture"),
         runtimes: Capability::unsupported("fixture"),
+        hardware_context: Capability::unsupported("fixture"),
         warnings: Vec::new(),
     }
 }

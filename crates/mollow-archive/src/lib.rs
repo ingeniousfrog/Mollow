@@ -210,14 +210,14 @@ mod tests {
     fn fixture_run_json(started_at_unix_ms: u64) -> String {
         format!(
             r#"{{
-  "schema_version": "3.0.0",
+  "schema_version": "4.0.0",
   "mollow_version": "0.1.0",
   "started_at_unix_ms": {started_at_unix_ms},
   "profile": "quick",
   "context": {{
     "build_profile": "release",
     "machine_snapshot": {{
-      "schema_version": "3.0.0",
+      "schema_version": "4.0.0",
       "mollow_version": "0.1.0",
       "captured_at_unix_ms": 1,
       "system": {{ "status": "unsupported", "value": null, "source": null, "message": "fixture" }},
@@ -229,6 +229,7 @@ mod tests {
       "power": {{ "status": "unsupported", "value": null, "source": null, "message": "fixture" }},
       "thermal": {{ "status": "unsupported", "value": null, "source": null, "message": "fixture" }},
       "runtimes": {{ "status": "unsupported", "value": null, "source": null, "message": "fixture" }},
+      "hardware_context": {{ "status": "unsupported", "value": null, "source": null, "message": "fixture" }},
       "warnings": []
     }}
   }},

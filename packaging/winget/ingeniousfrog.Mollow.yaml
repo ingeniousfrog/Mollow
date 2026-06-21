@@ -1,7 +1,7 @@
 # Package manifest for winget (community repo: microsoft/winget-pkgs).
 # Copy or adapt when submitting: Packages/i/IngeniousFrog/Mollow/<version>/ingeniousfrog.Mollow.yaml
 PackageIdentifier: ingeniousfrog.Mollow
-PackageVersion: 0.1.3
+PackageVersion: 0.1.4
 PackageLocale: en-US
 Publisher: ingeniousfrog
 PublisherUrl: https://github.com/ingeniousfrog
@@ -24,7 +24,7 @@ Installers:
     NestedInstallerFiles:
       - RelativeFilePath: mollow.exe
         PortableCommandAlias: mollow
-    InstallerUrl: https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.3/mollow-x86_64-pc-windows-msvc.zip
+    InstallerUrl: https://github.com/ingeniousfrog/Mollow/releases/download/v0.1.4/mollow-x86_64-pc-windows-msvc.zip
     InstallerSha256: 08103366f0b5d4410c0213e72a4095516b7eab50ced583a8f1bde9b3e1e0128f
 ManifestType: singleton
 ManifestVersion: 1.6.0

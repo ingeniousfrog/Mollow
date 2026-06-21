@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mollow.dev/schemas/benchmark-run-v4.schema.json",
+  "title": "Mollow Benchmark Run v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mollow_version",
+    "started_at_unix_ms",
+    "profile",
+    "context",
+    "cpu",
+    "memory",
+    "storage",
+    "gpu",
+    "media",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "4.0.0"
+    },
+    "mollow_version": {
+      "type": "string"
+    },
+    "started_at_unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "profile": {
+      "enum": [
+        "quick",
+        "standard"
+      ]
+    },
+    "context": {
+      "type": "object",
+      "required": [
+        "build_profile",
+        "machine_snapshot"
+      ],
+      "properties": {
+        "build_profile": {
+          "enum": [
+            "debug",
+            "release"
+          ]
+        },
+        "machine_snapshot": {
+          "$ref": "machine-snapshot-v4.schema.json"
+        }
+      }
+    },
+    "cpu": {
+      "$ref": "#/$defs/workloadCapability"
+    },
+    "memory": {
+      "$ref": "#/$defs/workloadCapability"
+    },
+    "storage": {
+      "$ref": "#/$defs/workloadCapability"
+    },
+    "gpu": {
+      "$ref": "#/$defs/workloadCapability"
+    },
+    "media": {
+      "$ref": "#/$defs/workloadCapability"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "workloadCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value",
+        "source",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "unsupported",
+            "permission_denied",
+            "unavailable",
+            "error"
+          ]
+        },
+        "value": {},
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

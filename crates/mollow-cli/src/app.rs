@@ -9,7 +9,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mollow_core::{BenchmarkProfile, BenchmarkRun, ComparisonReport, MachineSnapshot, WatchField};
-use mollow_platform::{collect_snapshot, collect_watch_reading, native_probe};
+use mollow_platform::{
+    collect_snapshot_with_options, collect_watch_reading, native_probe, SnapshotOptions,
+};
 use mollow_report::{ReportFormat, ReportLanguage};
 use serde::de::DeserializeOwned;
 
@@ -30,6 +32,8 @@ enum Command {
         format: OutputFormat,
         #[arg(long, value_enum, default_value_t = Language::English)]
         lang: Language,
+        #[arg(long, help = "Look up offline hardware catalog specs and benchmark references")]
+        enrich: bool,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -52,6 +56,8 @@ enum Command {
         format: OutputFormat,
         #[arg(long, value_enum, default_value_t = Language::English)]
         lang: Language,
+        #[arg(long, help = "Look up offline hardware catalog specs and benchmark references")]
+        enrich: bool,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -164,9 +170,10 @@ pub fn execute(cli: &Cli) -> Result<Output, Box<dyn std::error::Error>> {
         Command::Inspect {
             format,
             lang,
+            enrich,
             output,
         } => {
-            let snapshot = current_snapshot()?;
+            let snapshot = current_snapshot(*enrich)?;
             Ok(rendered(
                 mollow_report::render_snapshot(&snapshot, (*format).into(), (*lang).into())?,
                 output.as_ref(),
@@ -177,14 +184,21 @@ pub fn execute(cli: &Cli) -> Result<Output, Box<dyn std::error::Error>> {
             format,
             lang,
             output,
+        } => {
+            let benchmark = current_benchmark((*profile).into(), false)?;
+            Ok(rendered(
+                mollow_report::render_benchmark(&benchmark, (*format).into(), (*lang).into())?,
+                output.as_ref(),
+            ))
         }
-        | Command::Capture {
+        Command::Capture {
             profile,
             format,
             lang,
+            enrich,
             output,
         } => {
-            let benchmark = current_benchmark((*profile).into())?;
+            let benchmark = current_benchmark((*profile).into(), *enrich)?;
             Ok(rendered(
                 mollow_report::render_benchmark(&benchmark, (*format).into(), (*lang).into())?,
                 output.as_ref(),
@@ -419,30 +433,43 @@ fn render_archive_trend(
     }
 }
 
-fn current_snapshot() -> Result<MachineSnapshot, Box<dyn std::error::Error>> {
+fn current_snapshot(enrich: bool) -> Result<MachineSnapshot, Box<dyn std::error::Error>> {
     let captured_at_unix_ms = unix_time_ms()?;
-    Ok(collect_snapshot(
+    Ok(collect_snapshot_with_options(
         &native_probe(),
         env!("CARGO_PKG_VERSION"),
         captured_at_unix_ms,
+        SnapshotOptions {
+            enrich,
+            ..SnapshotOptions::default()
+        },
     ))
 }
 
 fn current_benchmark(
     profile: BenchmarkProfile,
+    enrich: bool,
 ) -> Result<BenchmarkRun, Box<dyn std::error::Error>> {
     let started_at_unix_ms = unix_time_ms()?;
-    let snapshot = collect_snapshot(
+    let mut snapshot = collect_snapshot_with_options(
         &native_probe(),
         env!("CARGO_PKG_VERSION"),
         started_at_unix_ms,
+        SnapshotOptions::default(),
     );
-    Ok(mollow_bench::run_suite(
+    let mut benchmark = mollow_bench::run_suite(
         profile,
         env!("CARGO_PKG_VERSION"),
         started_at_unix_ms,
-        snapshot,
-    )?)
+        snapshot.clone(),
+    )?;
+    if enrich {
+        let cpu_workload = benchmark.cpu.value.as_ref();
+        let gpu_workload = benchmark.gpu.value.as_ref();
+        mollow_platform::apply_hardware_enrichment(&mut snapshot, cpu_workload, gpu_workload);
+        benchmark.context.machine_snapshot = snapshot;
+    }
+    Ok(benchmark)
 }
 
 fn render_detected(

@@ -1,7 +1,9 @@
 use std::fmt::Write as _;
 
 use chrono::{Local, TimeZone};
-use mollow_core::{BenchmarkRun, ComparisonReport, MachineSnapshot, WatchField, WatchReading};
+use mollow_core::{
+    BenchmarkRun, ComparisonReport, HardwareContext, MachineSnapshot, WatchField, WatchReading,
+};
 
 mod localization;
 
@@ -89,11 +91,18 @@ pub fn render_snapshot(
         ReportFormat::Json => render_json(snapshot),
         ReportFormat::Terminal => Ok(render_snapshot_terminal(snapshot, language)),
         ReportFormat::Markdown => Ok(render_snapshot_markdown(snapshot, language)),
-        ReportFormat::Html => Ok(render_html(
-            title(language, "Machine Snapshot", "机器快照"),
-            &render_snapshot_markdown(snapshot, language),
-            language,
-        )),
+        ReportFormat::Html => {
+            let markdown = render_snapshot_markdown(snapshot, language);
+            let mut page = render_html(
+                title(language, "Machine Snapshot", "机器快照"),
+                &markdown,
+                language,
+            );
+            if let Some(diagrams) = render_hardware_context_diagrams(snapshot, language) {
+                page = page.replace("</body>", &format!("{diagrams}</body>"));
+            }
+            Ok(page)
+        }
     }
 }
 
@@ -285,6 +294,7 @@ fn render_snapshot_terminal(snapshot: &MachineSnapshot, language: ReportLanguage
         title(language, "\nHardware & runtime", "\n硬件与开发环境"),
     );
     append_snapshot_capabilities(&mut output, snapshot, language, "  ");
+    append_hardware_context(&mut output, snapshot, language, "  ");
     line(
         &mut output,
         title(language, "\nCurrent environment", "\n当前环境"),
@@ -314,6 +324,7 @@ fn render_snapshot_markdown(snapshot: &MachineSnapshot, language: ReportLanguage
         title(language, "Hardware & runtime", "硬件与开发环境"),
     );
     append_snapshot_capabilities(&mut output, snapshot, language, "- ");
+    append_hardware_context(&mut output, snapshot, language, "- ");
     let _ = write!(
         output,
         "\n## {}\n\n",
@@ -511,6 +522,8 @@ h1,h2{{line-height:1.25}}table{{width:100%;border-collapse:collapse;margin:16px 
 th,td{{border:1px solid color-mix(in srgb,CanvasText 20%,transparent);padding:8px 12px;text-align:left}}\
 th{{background:color-mix(in srgb,CanvasText 8%,transparent)}}ul{{padding-left:1.4rem}}\
 .warning{{background:color-mix(in srgb,#f5a623 18%,transparent);border-radius:12px;padding:16px}}\
+.architecture-diagram{{margin:24px 0;padding:16px;border:1px solid color-mix(in srgb,CanvasText 15%,transparent);border-radius:12px}}\
+.architecture-diagram svg{{width:100%;height:auto;display:block}}\
 </style></head><body>{}</body></html>\n",
         title(language, "en", "zh-CN"),
         escape_html(page_title),
@@ -697,6 +710,7 @@ fn append_snapshot_state(
                 format_swap(&memory.swap, language)
             ),
         );
+        append_memory_modules(output, memory, language, prefix);
     } else {
         line(
             output,
@@ -998,6 +1012,281 @@ fn format_change(value: Option<i32>) -> String {
     })
 }
 
+fn append_memory_modules(
+    output: &mut String,
+    memory: &mollow_core::MemoryInfo,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    match memory.modules.value.as_ref() {
+        Some(modules) if !modules.is_empty() => {
+            for module in modules {
+                line(
+                    output,
+                    &format!(
+                        "{prefix}{}: {} {} @ {} [{}]",
+                        title(language, "Memory module", "内存条"),
+                        module.slot.as_deref().unwrap_or("-"),
+                        module.mem_type.as_deref().unwrap_or("-"),
+                        module
+                            .speed_mts
+                            .map(|speed| speed.to_string())
+                            .unwrap_or_else(|| "-".to_owned()),
+                        module
+                            .size_bytes
+                            .map(bytes)
+                            .unwrap_or_else(|| "-".to_owned())
+                    ),
+                );
+            }
+        }
+        _ => line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "Memory modules", "内存条详情"),
+                status_name(&memory.modules.status, language)
+            ),
+        ),
+    }
+}
+
+fn append_hardware_context(
+    output: &mut String,
+    snapshot: &MachineSnapshot,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    let Some(context) = snapshot.hardware_context.value.as_ref() else {
+        if snapshot.hardware_context.status != mollow_core::CapabilityStatus::Unsupported {
+            line(
+                output,
+                &format!(
+                    "{prefix}{}: {}",
+                    title(language, "Hardware catalog", "硬件目录"),
+                    status_name(&snapshot.hardware_context.status, language)
+                ),
+            );
+        }
+        return;
+    };
+
+    line(
+        output,
+        title(
+            language,
+            &format!("\n{prefix}Hardware catalog ({})", context.catalog_version),
+            &format!("\n{prefix}硬件目录 ({})", context.catalog_version),
+        ),
+    );
+    append_cpu_catalog_match(output, context, language, prefix);
+    append_gpu_catalog_matches(output, context, language, prefix);
+    append_memory_catalog_match(output, context, language, prefix);
+    append_benchmark_reference(output, context, language, prefix);
+}
+
+fn append_cpu_catalog_match(
+    output: &mut String,
+    context: &HardwareContext,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    let Some(cpu) = context.cpu.value.as_ref() else {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "CPU catalog", "CPU 目录"),
+                status_name(&context.cpu.status, language)
+            ),
+        );
+        return;
+    };
+    line(
+        output,
+        &format!(
+            "{prefix}{}: {} ({confidence:?})",
+            title(language, "CPU catalog", "CPU 目录"),
+            cpu.matched_model,
+            confidence = cpu.confidence
+        ),
+    );
+    append_catalog_detail(
+        output,
+        prefix,
+        title(language, "Codename", "代号"),
+        cpu.codename.as_deref(),
+    );
+    append_catalog_detail(
+        output,
+        prefix,
+        title(language, "Architecture", "架构"),
+        cpu.architecture_summary.as_deref(),
+    );
+    append_catalog_detail(
+        output,
+        prefix,
+        title(language, "Reference score", "参考分数"),
+        cpu.reference_score.map(|score| score.to_string()).as_deref(),
+    );
+}
+
+fn append_gpu_catalog_matches(
+    output: &mut String,
+    context: &HardwareContext,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    let Some(gpus) = context.gpu.value.as_ref() else {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "GPU catalog", "GPU 目录"),
+                status_name(&context.gpu.status, language)
+            ),
+        );
+        return;
+    };
+    for gpu in gpus {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {} ({confidence:?})",
+                title(language, "GPU catalog", "GPU 目录"),
+                gpu.matched_model,
+                confidence = gpu.confidence
+            ),
+        );
+        append_catalog_detail(
+            output,
+            prefix,
+            title(language, "Architecture", "架构"),
+            gpu.architecture_summary.as_deref(),
+        );
+    }
+}
+
+fn append_memory_catalog_match(
+    output: &mut String,
+    context: &HardwareContext,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    let Some(memory) = context.memory.value.as_ref() else {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {}",
+                title(language, "Memory catalog", "内存目录"),
+                status_name(&context.memory.status, language)
+            ),
+        );
+        return;
+    };
+    line(
+        output,
+        &format!(
+            "{prefix}{}: {} ({confidence:?})",
+            title(language, "Memory catalog", "内存目录"),
+            memory.matched_profile,
+            confidence = memory.confidence
+        ),
+    );
+    append_catalog_detail(
+        output,
+        prefix,
+        title(language, "Architecture", "架构"),
+        memory.architecture_summary.as_deref(),
+    );
+}
+
+fn append_benchmark_reference(
+    output: &mut String,
+    context: &HardwareContext,
+    language: ReportLanguage,
+    prefix: &str,
+) {
+    let Some(reference) = context.benchmark_reference.value.as_ref() else {
+        return;
+    };
+    line(
+        output,
+        &format!(
+            "{prefix}{}: {} ({})",
+            title(language, "Benchmark reference", "基准参考"),
+            reference.catalog_benchmark_version,
+            reference.score_source
+        ),
+    );
+    if let Some(basis_points) = reference.cpu_vs_reference_basis_points {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {:+} bps",
+                title(language, "CPU vs catalog median", "CPU 相对目录中位数"),
+                basis_points
+            ),
+        );
+    }
+    if let Some(basis_points) = reference.gpu_vs_reference_basis_points {
+        line(
+            output,
+            &format!(
+                "{prefix}{}: {:+} bps",
+                title(language, "GPU vs catalog median", "GPU 相对目录中位数"),
+                basis_points
+            ),
+        );
+    }
+}
+
+fn append_catalog_detail(output: &mut String, prefix: &str, label: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        line(output, &format!("{prefix}  {label}: {value}"));
+    }
+}
+
+fn render_hardware_context_diagrams(
+    snapshot: &MachineSnapshot,
+    language: ReportLanguage,
+) -> Option<String> {
+    let context = snapshot.hardware_context.value.as_ref()?;
+    let mut html = format!(
+        "<h2>{}</h2>\n",
+        escape_html(title(
+            language,
+            "Architecture diagrams",
+            "架构示意图",
+        ))
+    );
+    if let Some(cpu) = context.cpu.value.as_ref() {
+        append_diagram_html(&mut html, cpu.diagram_template.as_deref(), &cpu.matched_model);
+    }
+    if let Some(gpus) = context.gpu.value.as_ref() {
+        for gpu in gpus {
+            append_diagram_html(&mut html, gpu.diagram_template.as_deref(), &gpu.matched_model);
+        }
+    }
+    if let Some(memory) = context.memory.value.as_ref() {
+        append_diagram_html(
+            &mut html,
+            memory.diagram_template.as_deref(),
+            &memory.matched_profile,
+        );
+    }
+    html.contains("<svg").then_some(html)
+}
+
+fn append_diagram_html(html: &mut String, template: Option<&str>, title: &str) {
+    let Some(template) = template else {
+        return;
+    };
+    if let Some(svg) = mollow_catalog::render_diagram(template, title) {
+        let _ = write!(html, "<div class=\"architecture-diagram\">{svg}</div>\n\n");
+    }
+}
+
 fn escape_html(input: &str) -> String {
     input
         .replace('&', "&amp;")
@@ -1056,6 +1345,7 @@ mod tests {
                     total_bytes: 1024,
                     available_bytes: None,
                     swap: Capability::unsupported("fixture"),
+                    modules: Capability::unsupported("fixture"),
                 },
                 source,
             ),
@@ -1078,18 +1368,19 @@ mod tests {
                 },
             ),
             warnings: Vec::new(),
+            hardware_context: Capability::unsupported("fixture"),
         };
 
         let report = render_json(&snapshot).expect("snapshot should serialize");
 
-        assert!(report.contains("\"schema_version\": \"3.0.0\""));
+        assert!(report.contains("\"schema_version\": \"4.0.0\""));
         assert!(report.ends_with('\n'));
     }
 
     #[test]
     fn bundled_schema_matches_the_snapshot_schema_version() {
         let schema_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas");
-        let schema_path = schema_directory.join("machine-snapshot-v3.schema.json");
+        let schema_path = schema_directory.join("machine-snapshot-v4.schema.json");
         let schema = fs::read_to_string(schema_path).expect("snapshot schema should exist");
         let schema: serde_json::Value =
             serde_json::from_str(&schema).expect("snapshot schema should be valid JSON");
@@ -1126,7 +1417,7 @@ mod tests {
     #[test]
     fn bundled_benchmark_schema_matches_the_benchmark_version() {
         let schema_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../schemas/benchmark-run-v3.schema.json");
+            .join("../../schemas/benchmark-run-v4.schema.json");
         let schema = fs::read_to_string(schema_path).expect("benchmark schema should exist");
         let schema: serde_json::Value =
             serde_json::from_str(&schema).expect("benchmark schema should be valid JSON");
@@ -1149,10 +1440,10 @@ mod tests {
             serde_json::from_str(&json).expect("benchmark JSON should parse");
         let schema_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas");
         let snapshot_schema =
-            fs::read_to_string(schema_directory.join("machine-snapshot-v3.schema.json"))
+            fs::read_to_string(schema_directory.join("machine-snapshot-v4.schema.json"))
                 .expect("snapshot schema should exist");
         let benchmark_schema =
-            fs::read_to_string(schema_directory.join("benchmark-run-v3.schema.json"))
+            fs::read_to_string(schema_directory.join("benchmark-run-v4.schema.json"))
                 .expect("benchmark schema should exist");
         let snapshot_value: serde_json::Value =
             serde_json::from_str(&snapshot_schema).expect("snapshot schema should parse");

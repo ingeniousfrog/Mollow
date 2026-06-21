@@ -15,7 +15,7 @@ fetch_latest_version() {
 if [[ -z "${VERSION}" ]]; then
   VERSION="$(fetch_latest_version)"
 fi
-VERSION="${VERSION:-0.1.3}"
+VERSION="${VERSION:-0.1.4}"
 
 usage() {
   cat <<EOF

@@ -4,8 +4,8 @@ use std::mem::size_of;
 use std::ptr;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, PowerInfo, RuntimeInfo,
-    StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
+    Capability, CpuInfo, DataSource, GpuInfo, MediaInfo, MemoryInfo, MemoryModuleInfo, PowerInfo,
+    RuntimeInfo, StorageVolume, SwapInfo, SystemInfo, ThermalInfo,
 };
 
 use crate::{PlatformProbe, ProbeArea, ProbeError, detect_runtimes};
@@ -168,6 +168,7 @@ impl PlatformProbe for NativeProbe {
                 },
                 self.source(ProbeArea::Memory),
             ),
+            modules: memory_modules_capability(self),
         })
     }
 
@@ -579,4 +580,10 @@ fn nonempty_wide(value: &[u16]) -> Option<String> {
         .trim()
         .to_owned();
     (!value.is_empty()).then_some(value)
+}
+
+fn memory_modules_capability(_probe: &NativeProbe) -> Capability<Vec<MemoryModuleInfo>> {
+    Capability::unsupported(
+        "memory module WMI lookup is not implemented; use --enrich for catalog memory profiles",
+    )
 }

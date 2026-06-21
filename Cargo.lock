@@ -1009,7 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "mollow"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "clap",
  "mollow-archive",
@@ -1024,7 +1024,7 @@ dependencies = [
 
 [[package]]
 name = "mollow-archive"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "mollow-core",
  "serde",
@@ -1033,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "mollow-bench"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "bytemuck",
  "libc",
@@ -1043,34 +1043,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "mollow-catalog"
+version = "0.1.4"
+dependencies = [
+ "mollow-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mollow-compare"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "mollow-core",
 ]
 
 [[package]]
 name = "mollow-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "mollow-platform"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "libc",
+ "mollow-catalog",
  "mollow-core",
  "serde_json",
 ]
 
 [[package]]
 name = "mollow-report"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "chrono",
  "jsonschema",
+ "mollow-catalog",
  "mollow-compare",
  "mollow-core",
  "serde",

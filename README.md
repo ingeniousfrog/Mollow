@@ -32,7 +32,7 @@ or system tuning tools.
 
 | Area | Capability |
 | --- | --- |
-| **Machine snapshot** (`inspect`) | OS, CPU, memory, storage volumes, GPU, media codecs, power, thermal state, installed runtimes |
+| **Machine snapshot** (`inspect`) | OS, CPU, memory (incl. DIMM modules), storage, GPU, media, power, thermal, runtimes; optional `--enrich` for offline hardware catalog |
 | **Live monitoring** (`watch`) | Refresh memory, power, and thermal readings at a fixed interval |
 | **Benchmarks** (`bench` / `capture`) | Versioned CPU, memory, storage, GPU (wgpu), and platform media workloads with median + MAD statistics |
 | **Comparison** (`compare`) | Schema/profile/workload validation, strict environment checks, field-level machine diffs, regression classification |
@@ -54,25 +54,28 @@ or `permission_denied`—never inferred from device names alone.
 | Media (Windows) | `media.media-foundation-h264-decode` | Media Foundation hardware H.264 decode |
 | Media (Linux) | `media.vaapi-h264-decode` | VA-API hardware H.264 decode |
 
-### Snapshot schema (v3) — fields collected by `inspect`
+### Snapshot schema (v4) — fields collected by `inspect`
 
 | Component | Examples |
 | --- | --- |
 | `system` | OS name/version, kernel, architecture, hostname |
 | `cpu` | Model, physical/logical cores, ISA features |
-| `memory` | Total/available RAM, swap usage |
+| `memory` | Total/available RAM, swap usage, per-module type/speed (when available) |
 | `storage` | Mount points, volume size, filesystem type |
 | `gpu` | Device name, vendor, APIs |
 | `media` | Backend, hardware decode/encode codec lists |
 | `power` | AC/battery, charge %, low-power mode |
 | `thermal` | State, temperature, sensor |
 | `runtimes` | rustc, cargo, git, node, python (when present) |
+| `hardware_context` | Optional (`--enrich`): catalog specs, architecture summary, benchmark reference |
+
+See [docs/hardware-enrichment.md](docs/hardware-enrichment.md) for the offline catalog and `--enrich` behavior.
 
 ---
 
 ## Sample `inspect` output
 
-Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.3):
+Terminal output from `mollow inspect --format terminal --lang zh-CN` (v0.1.4):
 
 <table>
   <tr>
@@ -131,10 +134,10 @@ sequenceDiagram
 
 ## Installation
 
-Current release: **[v0.1.3](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.3)**.
+Current release: **[v0.1.4](https://github.com/ingeniousfrog/Mollow/releases/tag/v0.1.4)**.
 Prebuilt binaries are published for macOS (Apple Silicon and Intel), Linux x86_64 (**musl static + glibc builds**), and Windows x86_64.
 
-**v0.1.3 highlights:** readable Linux GPU names via `nvidia-smi` and `pci.ids`. **v0.1.2 highlights:** fixes `GLIBC_2.39 not found` on older Linux (Ubuntu 20.04, cloud VPS). Install scripts default to the musl static binary.
+**v0.1.4 highlights:** snapshot/benchmark schema **v4**, optional `--enrich` offline hardware catalog (CPU/GPU/memory specs, architecture summaries, simplified HTML diagrams, benchmark reference deltas), and memory module probing (Linux DMI, macOS `system_profiler`). **v0.1.3 highlights:** readable Linux GPU names via `nvidia-smi` and `pci.ids`. **v0.1.2 highlights:** fixes `GLIBC_2.39 not found` on older Linux (Ubuntu 20.04, cloud VPS). Install scripts default to the musl static binary.
 
 ### Quick pick by platform
 
@@ -230,10 +233,10 @@ curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging
 Pin a version if CDN caching serves an old script:
 
 ```bash
-MOLLOW_VERSION=0.1.3 curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
+MOLLOW_VERSION=0.1.4 curl -fsSL https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install-ubuntu.sh | sudo bash
 ```
 
-**Windows PowerShell** — re-run `install.ps1`, or `.\install.ps1 -Version 0.1.3` (restart your terminal afterward).
+**Windows PowerShell** — re-run `install.ps1`, or `.\install.ps1 -Version 0.1.4` (restart your terminal afterward).
 
 | Install method | Upgrade |
 | --- | --- |
@@ -391,7 +394,7 @@ Pin a specific version:
 
 ```powershell
 irm https://raw.githubusercontent.com/ingeniousfrog/Mollow/main/packaging/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version 0.1.3
+.\install.ps1 -Version 0.1.4
 ```
 
 Restart the terminal after installation, then:
@@ -502,6 +505,7 @@ mollow inspect [OPTIONS]
 | --- | --- | --- |
 | `--format` | `terminal` | `terminal` · `json` · `markdown` · `html` |
 | `--lang` | `english` | `english` · `zh-CN` |
+| `--enrich` | — | Look up the offline hardware catalog (specs, architecture summary, benchmark reference) |
 | `--output` | — | Save rendered output to a file |
 
 **Examples**
@@ -515,7 +519,12 @@ mollow inspect --format json --output snapshot.json
 
 # Shareable HTML report
 mollow inspect --format html --lang english --output inspect.html
+
+# Offline hardware catalog enrichment
+mollow inspect --enrich --format terminal --lang zh-CN
 ```
+
+See [docs/hardware-enrichment.md](docs/hardware-enrichment.md).
 
 ---
 
@@ -556,6 +565,7 @@ mollow capture [OPTIONS]
 | `--profile` | `quick` | Benchmark profile |
 | `--format` | `json` | Default is JSON for archival; use `terminal` for a quick read |
 | `--lang` | `english` | Report language |
+| `--enrich` | — | Attach offline hardware catalog context (includes benchmark reference deltas) |
 | `--output` | — | **Strongly recommended** — baseline file path |
 
 **Examples**
@@ -720,8 +730,8 @@ Full warmup counts, statistics (median + MAD), and storage safety: [docs/benchma
 
 | Artifact | Schema | Path |
 | --- | --- | --- |
-| Machine snapshot | v3.0.0 | `schemas/machine-snapshot-v3.schema.json` |
-| Benchmark run | v3.0.0 | `schemas/benchmark-run-v3.schema.json` |
+| Machine snapshot | v4.0.0 | `schemas/machine-snapshot-v4.schema.json` |
+| Benchmark run | v4.0.0 | `schemas/benchmark-run-v4.schema.json` |
 | Comparison report | v2.0.0 | `schemas/comparison-report-v2.schema.json` |
 
 ---
@@ -737,6 +747,7 @@ cargo test --workspace --release
 
 | Document | Topic |
 | --- | --- |
+| [docs/hardware-enrichment.md](docs/hardware-enrichment.md) | Offline catalog, `--enrich`, schema v4 `hardware_context` |
 | [docs/architecture.md](docs/architecture.md) | Crate boundaries, capability semantics |
 | [docs/benchmarks.md](docs/benchmarks.md) | Workloads, profiles, statistics |
 | [docs/comparison.md](docs/comparison.md) | Comparability and strict environment rules |

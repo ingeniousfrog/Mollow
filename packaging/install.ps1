@@ -14,7 +14,7 @@ function Get-LatestMollowVersion {
         return $response.tag_name.TrimStart("v")
     }
     catch {
-        return "0.1.3"
+        return "0.1.4"
     }
 }
 

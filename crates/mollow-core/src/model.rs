@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: &str = "3.0.0";
-pub const BENCHMARK_SCHEMA_VERSION: &str = "3.0.0";
+pub const SCHEMA_VERSION: &str = "4.0.0";
+pub const BENCHMARK_SCHEMA_VERSION: &str = "4.0.0";
 pub const COMPARISON_SCHEMA_VERSION: &str = "2.0.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,10 +93,25 @@ pub struct CpuInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryModuleInfo {
+    pub slot: Option<String>,
+    pub mem_type: Option<String>,
+    pub speed_mts: Option<u32>,
+    pub size_bytes: Option<u64>,
+    pub manufacturer: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryInfo {
     pub total_bytes: u64,
     pub available_bytes: Option<u64>,
     pub swap: Capability<SwapInfo>,
+    #[serde(default = "unsupported_memory_modules")]
+    pub modules: Capability<Vec<MemoryModuleInfo>>,
+}
+
+fn unsupported_memory_modules() -> Capability<Vec<MemoryModuleInfo>> {
+    Capability::unsupported("memory module details were not collected")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -283,6 +298,83 @@ pub struct ComparisonReport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingCapability {}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MatchConfidence {
+    Exact,
+    Normalized,
+    Fuzzy,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CpuCatalogMatch {
+    pub matched_model: String,
+    pub confidence: MatchConfidence,
+    pub codename: Option<String>,
+    pub architecture_family: Option<String>,
+    pub architecture_summary: Option<String>,
+    pub process_nm: Option<u32>,
+    pub base_clock_mhz: Option<u32>,
+    pub boost_clock_mhz: Option<u32>,
+    pub l3_cache_mb: Option<u32>,
+    pub tdp_watts: Option<u32>,
+    pub performance_core_count: Option<u32>,
+    pub efficiency_core_count: Option<u32>,
+    pub reference_urls: Vec<String>,
+    pub diagram_template: Option<String>,
+    pub reference_score: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GpuCatalogMatch {
+    pub matched_model: String,
+    pub confidence: MatchConfidence,
+    pub codename: Option<String>,
+    pub architecture_family: Option<String>,
+    pub architecture_summary: Option<String>,
+    pub process_nm: Option<u32>,
+    pub shader_units: Option<u32>,
+    pub memory_type: Option<String>,
+    pub memory_bus_bits: Option<u32>,
+    pub tdp_watts: Option<u32>,
+    pub reference_urls: Vec<String>,
+    pub diagram_template: Option<String>,
+    pub reference_score: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryCatalogMatch {
+    pub matched_profile: String,
+    pub confidence: MatchConfidence,
+    pub memory_type: Option<String>,
+    pub speed_mts: Option<u32>,
+    pub channels: Option<u32>,
+    pub architecture_summary: Option<String>,
+    pub reference_urls: Vec<String>,
+    pub diagram_template: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BenchmarkReferenceMatch {
+    pub catalog_benchmark_version: String,
+    pub score_source: String,
+    pub cpu_reference_score: Option<u64>,
+    pub gpu_reference_score: Option<u64>,
+    pub cpu_local_rate_per_second: Option<u64>,
+    pub gpu_local_rate_per_second: Option<u64>,
+    pub cpu_vs_reference_basis_points: Option<i32>,
+    pub gpu_vs_reference_basis_points: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HardwareContext {
+    pub catalog_version: String,
+    pub cpu: Capability<CpuCatalogMatch>,
+    pub gpu: Capability<Vec<GpuCatalogMatch>>,
+    pub memory: Capability<MemoryCatalogMatch>,
+    pub benchmark_reference: Capability<BenchmarkReferenceMatch>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MachineSnapshot {
     pub schema_version: String,
@@ -297,7 +389,13 @@ pub struct MachineSnapshot {
     pub power: Capability<PowerInfo>,
     pub thermal: Capability<ThermalInfo>,
     pub runtimes: Capability<Vec<RuntimeInfo>>,
+    #[serde(default = "unsupported_hardware_context")]
+    pub hardware_context: Capability<HardwareContext>,
     pub warnings: Vec<String>,
+}
+
+fn unsupported_hardware_context() -> Capability<HardwareContext> {
+    Capability::unsupported("run inspect with --enrich to look up the offline hardware catalog")
 }
 
 #[cfg(test)]

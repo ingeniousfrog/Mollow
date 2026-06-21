@@ -305,6 +305,7 @@ fn append_advanced_changes(
     baseline: &MachineSnapshot,
     candidate: &MachineSnapshot,
 ) {
+    append_hardware_context_changes(changes, baseline, candidate);
     push_change(
         changes,
         "gpu",
@@ -372,6 +373,60 @@ fn append_runtime_changes(
             candidate_runtimes.get(name).cloned(),
         );
     }
+}
+
+fn append_hardware_context_changes(
+    changes: &mut Vec<MachineChange>,
+    baseline: &MachineSnapshot,
+    candidate: &MachineSnapshot,
+) {
+    push_change(
+        changes,
+        "hardware_context.cpu",
+        hardware_cpu_summary(baseline),
+        hardware_cpu_summary(candidate),
+    );
+    push_change(
+        changes,
+        "hardware_context.gpu",
+        hardware_gpu_summary(baseline),
+        hardware_gpu_summary(candidate),
+    );
+    push_change(
+        changes,
+        "hardware_context.memory",
+        hardware_memory_summary(baseline),
+        hardware_memory_summary(candidate),
+    );
+}
+
+fn hardware_cpu_summary(snapshot: &MachineSnapshot) -> Option<String> {
+    snapshot
+        .hardware_context
+        .value
+        .as_ref()
+        .and_then(|context| context.cpu.value.as_ref())
+        .map(|cpu| cpu.matched_model.clone())
+}
+
+fn hardware_gpu_summary(snapshot: &MachineSnapshot) -> Option<String> {
+    snapshot.hardware_context.value.as_ref().and_then(|context| {
+        context.gpu.value.as_ref().map(|gpus| {
+            gpus.iter()
+                .map(|gpu| gpu.matched_model.clone())
+                .collect::<Vec<_>>()
+                .join("; ")
+        })
+    })
+}
+
+fn hardware_memory_summary(snapshot: &MachineSnapshot) -> Option<String> {
+    snapshot
+        .hardware_context
+        .value
+        .as_ref()
+        .and_then(|context| context.memory.value.as_ref())
+        .map(|memory| memory.matched_profile.clone())
 }
 
 fn gpu_summary(snapshot: &MachineSnapshot) -> Option<String> {
@@ -641,7 +696,7 @@ mod tests {
             context: BenchmarkContext {
                 build_profile: build_profile.to_owned(),
                 machine_snapshot: MachineSnapshot {
-                    schema_version: "3.0.0".to_owned(),
+                    schema_version: "4.0.0".to_owned(),
                     mollow_version: "0.1.0".to_owned(),
                     captured_at_unix_ms: 1,
                     system: Capability::unsupported("fixture"),
@@ -653,6 +708,7 @@ mod tests {
                     power: Capability::unsupported("fixture"),
                     thermal: Capability::unsupported("fixture"),
                     runtimes: Capability::unsupported("fixture"),
+                    hardware_context: Capability::unsupported("fixture"),
                     warnings: Vec::new(),
                 },
             },

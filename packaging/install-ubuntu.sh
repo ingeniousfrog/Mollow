@@ -17,7 +17,7 @@ fetch_latest_version() {
 if [[ -z "${VERSION}" ]]; then
   VERSION="$(fetch_latest_version)"
 fi
-VERSION="${VERSION:-0.1.3}"
+VERSION="${VERSION:-0.1.4}"
 
 ASSET="mollow-${TARGET}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}"

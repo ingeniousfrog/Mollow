@@ -1,4 +1,7 @@
 #[cfg(any(target_os = "linux", test))]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+mod linux_dmi;
+#[cfg(any(target_os = "linux", test))]
 mod linux_gpu;
 #[cfg(target_os = "linux")]
 mod linux_media;
@@ -8,8 +11,9 @@ mod native;
 mod runtimes;
 
 use mollow_core::{
-    Capability, CpuInfo, DataSource, GpuInfo, MachineSnapshot, MediaInfo, MemoryInfo, PowerInfo,
-    RuntimeInfo, SCHEMA_VERSION, StorageVolume, SystemInfo, ThermalInfo, WatchReading,
+    Capability, CpuInfo, DataSource, GpuInfo, HardwareContext, MachineSnapshot, MediaInfo,
+    MemoryInfo, PowerInfo, RuntimeInfo, SCHEMA_VERSION, StorageVolume,
+    SystemInfo, ThermalInfo, WatchReading,
 };
 
 pub use native::NativeProbe;
@@ -126,12 +130,34 @@ pub fn collect_snapshot(
     mollow_version: &str,
     captured_at_unix_ms: u64,
 ) -> MachineSnapshot {
+    collect_snapshot_with_options(
+        probe,
+        mollow_version,
+        captured_at_unix_ms,
+        SnapshotOptions::default(),
+    )
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SnapshotOptions {
+    pub enrich: bool,
+    pub cpu_workload: Option<mollow_core::WorkloadResult>,
+    pub gpu_workload: Option<mollow_core::WorkloadResult>,
+}
+
+#[must_use]
+pub fn collect_snapshot_with_options(
+    probe: &impl PlatformProbe,
+    mollow_version: &str,
+    captured_at_unix_ms: u64,
+    options: SnapshotOptions,
+) -> MachineSnapshot {
     let system = observe(probe.system(), &probe.source(ProbeArea::System));
     let cpu = observe(probe.cpu(), &probe.source(ProbeArea::Cpu));
     let memory = observe(probe.memory(), &probe.source(ProbeArea::Memory));
     let storage = observe(probe.storage(), &probe.source(ProbeArea::Storage));
     let runtimes = observe(probe.runtimes(), &probe.source(ProbeArea::Runtimes));
-    MachineSnapshot {
+    let mut snapshot = MachineSnapshot {
         schema_version: SCHEMA_VERSION.to_owned(),
         mollow_version: mollow_version.to_owned(),
         captured_at_unix_ms,
@@ -144,8 +170,59 @@ pub fn collect_snapshot(
         power: probe.power(),
         thermal: probe.thermal(),
         runtimes,
+        hardware_context: Capability::unsupported(
+            "run inspect with --enrich to look up the offline hardware catalog",
+        ),
         warnings: Vec::new(),
+    };
+
+    if options.enrich {
+        snapshot.hardware_context = enrich_snapshot(&snapshot, options);
     }
+
+    snapshot
+}
+
+fn enrich_snapshot(
+    snapshot: &MachineSnapshot,
+    options: SnapshotOptions,
+) -> Capability<HardwareContext> {
+    let cpu_model = snapshot.cpu.value.as_ref().and_then(|cpu| cpu.model.as_deref());
+    let gpu_names = snapshot.gpu.value.as_deref().unwrap_or_default();
+    let memory_modules = snapshot
+        .memory
+        .value
+        .as_ref()
+        .and_then(|memory| memory.modules.value.as_deref());
+    let cpu_workload = options.cpu_workload.as_ref();
+    let gpu_workload = options.gpu_workload.as_ref();
+
+    match mollow_catalog::enrich(mollow_catalog::EnrichmentInput {
+        cpu_model,
+        gpu_names,
+        memory_modules,
+        cpu_workload,
+        gpu_workload,
+    }) {
+        Ok(context) => context,
+        Err(error) => Capability::error(error.to_string()),
+    }
+}
+
+/// Attaches offline catalog enrichment to an existing snapshot.
+pub fn apply_hardware_enrichment(
+    snapshot: &mut MachineSnapshot,
+    cpu_workload: Option<&mollow_core::WorkloadResult>,
+    gpu_workload: Option<&mollow_core::WorkloadResult>,
+) {
+    snapshot.hardware_context = enrich_snapshot(
+        snapshot,
+        SnapshotOptions {
+            enrich: true,
+            cpu_workload: cpu_workload.cloned(),
+            gpu_workload: gpu_workload.cloned(),
+        },
+    );
 }
 
 fn observe<T>(result: Result<T, ProbeError>, source: &DataSource) -> Capability<T> {

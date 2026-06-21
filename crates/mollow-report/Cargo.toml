@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 chrono.workspace = true
+mollow-catalog = { path = "../mollow-catalog" }
 mollow-core = { path = "../mollow-core" }
 mollow-compare = { path = "../mollow-compare" }
 serde.workspace = true
